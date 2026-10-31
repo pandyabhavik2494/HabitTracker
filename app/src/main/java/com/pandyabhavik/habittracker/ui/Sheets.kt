@@ -51,7 +51,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.pandyabhavik.habittracker.core.CalorieState
 import com.pandyabhavik.habittracker.core.Habit
 import com.pandyabhavik.habittracker.core.Rules
 import com.pandyabhavik.habittracker.data.HomeState
@@ -92,7 +91,7 @@ fun HabitSheet(habit: Habit, s: HomeState, onDismiss: () -> Unit) {
             }
             when (habit) {
                 Habit.STEPS -> StepsSheet(s)
-                Habit.CALORIES -> CaloriesSheet(s, onDismiss)
+                Habit.CALORIES -> MealsSheet(s, onDismiss)
                 Habit.WEIGH -> WeighSheet(s, onDismiss)
                 Habit.BATH -> BathSheet(s, onDismiss)
             }
@@ -144,57 +143,29 @@ private fun StepsSheet(s: HomeState) {
     }
 }
 
+/** Meals are a manual yes/no: "Did you log your meals today?" */
 @Composable
-private fun CaloriesSheet(s: HomeState, close: () -> Unit) {
+private fun MealsSheet(s: HomeState, close: () -> Unit) {
     val a = LocalActions.current
     val d = s.today
-    Text("${F.n(d.calories)} kcal", style = T.hero.copy(fontSize = 40.sp, color = if (s.calorieState == CalorieState.OVER) C.risk else C.ink))
-    Text(
-        when (s.calorieState) {
-            CalorieState.NOT_LOGGED -> "Nothing logged today. Log in MyFitnessPal; it syncs through Health Connect."
-            CalorieState.UNDER -> "${F.n(s.goals.calories - d.calories)} kcal left. Done eating? Close the kitchen to seal the quarter, or it locks itself at ${F.minutesOfDay(s.goals.kitchenLockMinute)}."
-            CalorieState.CLOSED -> "Kitchen closed with ${F.n(s.goals.calories - d.calories)} kcal to spare. Food logged later still counts against you."
-            CalorieState.OVER -> "${F.n(d.calories - s.goals.calories)} kcal over. This quarter can't close today; swaps can still save the streak tonight."
-        },
-        style = T.body,
-    )
-    F.mealLine(d).forEach { (name, kcal) ->
-        Row(Modifier.fillMaxWidth()) {
-            Text(name, style = T.label, modifier = Modifier.weight(1f))
-            Text("${F.n(kcal)} kcal", style = T.label.copy(color = C.mute))
+    val at = d.mealsLoggedAt
+    if (at == null) {
+        Text("Did you log your meals today?", style = T.h2)
+        Text("Log them wherever you like, then tap yes. That closes this quarter.", style = T.body)
+        SheetButton("Yes, all logged", C.calories, Color(0xFF1E0E02), Modifier.testTag("meals-yes")) {
+            a.vm.logMeals()
+            close()
         }
-    }
-    when {
-        s.calorieState == CalorieState.UNDER ->
-            HoldButton(
-                "Hold to close the kitchen",
-                modifier = habitHold(C.calories),
-                haptics = s.settings.haptics,
-                brush = habitFill(C.calories),
-            ) {
-                a.vm.closeKitchen()
+        Text("Shortcut: tap the check on the Meals row on Today, or use the button on the evening nudge.", style = T.small)
+    } else {
+        Text("Meals logged at ${F.time(at, s.zone)}.", style = T.h2)
+        val opened = s.packs.any { it.date == d.date.toString() && it.openedAt != null }
+        if (!(s.perfect && opened)) {
+            OutlinedSheetButton("Not yet: undo", C.risk, Modifier.testTag("undo-meals")) {
+                a.vm.unlogMeals()
                 close()
             }
-        d.kitchenClosedAt != null && !Rules.kitchenLocked(d.copy(kitchenClosedAt = null), s.goals, s.now) &&
-            s.packs.none { it.date == d.date.toString() && it.openedAt != null } ->
-            SheetButton("Reopen the kitchen", C.s2, C.ink) {
-                a.vm.reopenKitchen()
-                close()
-            }
-    }
-    val context = LocalContext.current
-    context.packageManager.getLaunchIntentForPackage("com.myfitnesspal.android")?.let { intent ->
-        SheetButton("Open MyFitnessPal", C.s2, C.ink) { runCatching { context.startActivity(intent) } }
-    }
-    // The setup hint only when meals aren't arriving: no nutrition access, or nothing logged for a few days.
-    val granted by a.vm.granted.collectAsStateWithLifecycle()
-    val grantedChecked by a.vm.grantedChecked.collectAsStateWithLifecycle()
-    val noAccess = grantedChecked && HealthGateway.READ_NUTRITION !in granted
-    // Anything logged today means meals are arriving, whatever the permission check says.
-    val loggedToday = d.meals > 0 || d.calories > 0
-    val recentMeals = (1L..3L).any { back -> (s.days[d.date.minusDays(back)]?.meals ?: 0) > 0 }
-    if (!loggedToday && (noAccess || !recentMeals)) {
-        Text("In MyFitnessPal, turn on Settings › Sharing & Privacy › Health Connect so meals reach this app.", style = T.small)
+        }
     }
 }
 

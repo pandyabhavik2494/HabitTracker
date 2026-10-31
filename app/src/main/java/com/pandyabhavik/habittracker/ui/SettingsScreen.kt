@@ -110,13 +110,7 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
                 Stepper("Daily steps", F.n(st.stepsGoal), "steps-goal",
                     { vm.updateSettings { it.copy(stepsGoal = (it.stepsGoal - 500).coerceAtLeast(1_000)) } },
                     { vm.updateSettings { it.copy(stepsGoal = (it.stepsGoal + 500).coerceAtMost(50_000)) } })
-                Stepper("Calorie limit", "${F.n(st.calorieGoal)} kcal", "calorie-goal",
-                    { vm.updateSettings { it.copy(calorieGoal = (it.calorieGoal - 50).coerceAtLeast(800)) } },
-                    { vm.updateSettings { it.copy(calorieGoal = (it.calorieGoal + 50).coerceAtMost(5_000)) } })
-                Stepper("Kitchen locks at", F.minutesOfDay(st.kitchenLockMinute), "kitchen-lock",
-                    { vm.updateSettings { it.copy(kitchenLockMinute = (it.kitchenLockMinute - 15).coerceAtLeast(17 * 60)) } },
-                    { vm.updateSettings { it.copy(kitchenLockMinute = (it.kitchenLockMinute + 15).coerceAtMost(23 * 60 + 45)) } })
-                Text("Hold to close the kitchen whenever you're done eating; if you forget, it locks itself at this time. Food logged after that still counts.", style = T.small)
+                Text("Meals are a yes/no you tap once you've logged them; nothing is synced for food.", style = T.small)
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Weight unit", style = T.label, modifier = Modifier.weight(1f))
@@ -161,7 +155,6 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
                         // Null while the granted set is still being read: neutral, not a red "missing".
                         fun ok(p: String): Boolean? = if (grantedChecked) p in granted else null
                         Access("Steps (Google Health / Fit)", ok(HealthGateway.READ_STEPS))
-                        Access("Food (MyFitnessPal)", ok(HealthGateway.READ_NUTRITION))
                         Access("Weight (VeSync scale)", ok(HealthGateway.READ_WEIGHT))
                         Access("Sync in the background", ok(HealthGateway.READ_IN_BACKGROUND))
                     }

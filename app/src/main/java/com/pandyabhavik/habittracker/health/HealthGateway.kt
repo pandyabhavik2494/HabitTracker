@@ -5,8 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
-import androidx.health.connect.client.records.MealType
-import androidx.health.connect.client.records.NutritionRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.WeightRecord
@@ -26,20 +24,14 @@ data class HealthDay(
     val date: LocalDate,
     val steps: Int?,
     val hourly: List<Int>?,
-    val calories: Int?,
-    val meals: Int?,
-    val breakfast: Int = 0,
-    val lunch: Int = 0,
-    val dinner: Int = 0,
-    val snacks: Int = 0,
     val weightKg: Double?,
     val weighedAt: Long?,
 )
 
 /**
- * Reads the three synced habits from Health Connect: steps (Google Health / Fit and any other step
- * source, de-duplicated by Health Connect's own priority list), food from MyFitnessPal, and weight
- * from the scale's app (VeSync).
+ * Reads the two synced habits from Health Connect: steps (Google Health / Fit and any other step
+ * source, de-duplicated by Health Connect's own priority list) and weight from the scale's app (VeSync).
+ * Meals are a manual check-in in the app, so no food data is read.
  */
 class HealthGateway(private val context: Context) {
     fun status(): HealthStatus = when (HealthConnectClient.getSdkStatus(context, PROVIDER)) {
@@ -82,28 +74,6 @@ class HealthGateway(private val context: Context) {
             hourly = h.toList()
         }
 
-        var calories: Int? = null
-        var meals: Int? = null
-        val perMeal = IntArray(5)
-        if (READ_NUTRITION in granted) {
-            val food = readAll(NutritionRecord::class, range).filter { it.metadata.dataOrigin.packageName != context.packageName }
-            meals = food.size
-            var kcal = 0.0
-            food.forEach { r ->
-                val e = r.energy?.inKilocalories ?: 0.0
-                kcal += e
-                val slot = when (r.mealType) {
-                    MealType.MEAL_TYPE_BREAKFAST -> 0
-                    MealType.MEAL_TYPE_LUNCH -> 1
-                    MealType.MEAL_TYPE_DINNER -> 2
-                    MealType.MEAL_TYPE_SNACK -> 3
-                    else -> 4
-                }
-                perMeal[slot] += e.toInt()
-            }
-            calories = kotlin.math.round(kcal).toInt()
-        }
-
         var weight: Double? = null
         var weighedAt: Long? = null
         if (READ_WEIGHT in granted) {
@@ -117,13 +87,6 @@ class HealthGateway(private val context: Context) {
             date = date,
             steps = steps,
             hourly = hourly,
-            calories = calories,
-            meals = meals,
-            breakfast = perMeal[0],
-            lunch = perMeal[1],
-            dinner = perMeal[2],
-            // Food without a meal type counts as a snack in the breakdown.
-            snacks = perMeal[3] + perMeal[4],
             weightKg = weight,
             weighedAt = weighedAt,
         )
@@ -144,11 +107,10 @@ class HealthGateway(private val context: Context) {
         const val PROVIDER = "com.google.android.apps.healthdata"
 
         val READ_STEPS = HealthPermission.getReadPermission(StepsRecord::class)
-        val READ_NUTRITION = HealthPermission.getReadPermission(NutritionRecord::class)
         val READ_WEIGHT = HealthPermission.getReadPermission(WeightRecord::class)
         const val READ_IN_BACKGROUND = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
 
-        val ALL = setOf(READ_STEPS, READ_NUTRITION, READ_WEIGHT, READ_IN_BACKGROUND)
-        val CORE = setOf(READ_STEPS, READ_NUTRITION, READ_WEIGHT)
+        val ALL = setOf(READ_STEPS, READ_WEIGHT, READ_IN_BACKGROUND)
+        val CORE = setOf(READ_STEPS, READ_WEIGHT)
     }
 }

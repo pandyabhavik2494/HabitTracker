@@ -44,7 +44,6 @@ import androidx.glance.unit.ColorProvider
 import com.pandyabhavik.habittracker.MainActivity
 import com.pandyabhavik.habittracker.R
 import com.pandyabhavik.habittracker.art.SealArt
-import com.pandyabhavik.habittracker.core.CalorieState
 import com.pandyabhavik.habittracker.core.Coach
 import com.pandyabhavik.habittracker.core.Habit
 import com.pandyabhavik.habittracker.core.Rules
@@ -159,36 +158,16 @@ internal fun countdown(s: HomeState): String {
     return if (h > 0) "${h}h ${m}m" else "${m}m"
 }
 
-private fun calorieOver(s: HomeState) = s.calorieState == CalorieState.OVER
+/** Bar fill for a habit: its progress (steps fill gradually; the yes/no quarters are empty or full). */
+private fun barValue(s: HomeState, h: Habit): Float = (s.progress[h] ?: 0f).coerceIn(0f, 1f)
 
-/**
- * Bar fill for a habit: its progress. Calories are different: s.progress is a time-of-day fill until the
- * kitchen locks (right for the Seal), but next to "710 left" a bar reads as a kcal meter, so here it shows
- * kcal eaten against the limit; full once the kitchen is closed, and full (red) when over.
- */
-private fun barValue(s: HomeState, h: Habit): Float = when {
-    h != Habit.CALORIES -> (s.progress[h] ?: 0f).coerceIn(0f, 1f)
-    s.calorieState == CalorieState.OVER || s.calorieState == CalorieState.CLOSED -> 1f
-    s.goals.calories <= 0 -> 0f
-    else -> (s.today.calories.toFloat() / s.goals.calories).coerceIn(0f, 1f)
-}
+private fun barColor(s: HomeState, h: Habit): Color = C.of(h)
 
-private fun barColor(s: HomeState, h: Habit): Color = if (h == Habit.CALORIES && calorieOver(s)) C.risk else C.of(h)
-
-/**
- * The value at the end of a habit row: what's left while open, "done" once closed, for every habit alike
- * (totals live in the app). Calories over the limit say by how much, in red.
- */
-private fun rowValue(s: HomeState, h: Habit): String = when (h) {
-    Habit.STEPS -> if (h in s.closed) "done"
-    else "${Coach.n((s.goals.steps - s.today.steps).coerceAtLeast(0))} left"
-    Habit.CALORIES -> when (s.calorieState) {
-        CalorieState.NOT_LOGGED -> "open"
-        CalorieState.UNDER -> "${Coach.n((s.goals.calories - s.today.calories).coerceAtLeast(0))} left"
-        CalorieState.CLOSED -> "done"
-        CalorieState.OVER -> "${Coach.n((s.today.calories - s.goals.calories).coerceAtLeast(0))} over"
-    }
-    Habit.WEIGH, Habit.BATH -> if (h in s.closed) "done" else "open"
+/** The value at the end of a habit row: what's left while open, "done" once closed (totals live in the app). */
+private fun rowValue(s: HomeState, h: Habit): String = when {
+    h in s.closed -> "done"
+    h == Habit.STEPS -> "${Coach.n((s.goals.steps - s.today.steps).coerceAtLeast(0))} left"
+    else -> "open"
 }
 
 /** A rounded bar. [trackDp] is the expected track width, used for the fill; the track itself takes [modifier]. */
@@ -207,13 +186,13 @@ private fun Bar(modifier: GlanceModifier, trackDp: Float, value: Float, color: C
 /** Icon, bar and (optionally) a right-aligned value of [valueDp] width. */
 @Composable
 private fun HabitRow(s: HomeState, h: Habit, k: Float, rowDp: Float, valueDp: Float?) {
-    val icon = 14f * k
+    val icon = 16f * k
     val gap = 8f * k
     val track = rowDp - icon - gap - (if (valueDp != null) gap + valueDp else 0f)
     Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Icon(h.iconRes(), C.of(h), icon.dp)
         Spacer(GlanceModifier.width(gap.dp))
-        Bar(GlanceModifier.defaultWeight(), track, barValue(s, h), barColor(s, h), (5f * k).dp)
+        Bar(GlanceModifier.defaultWeight(), track, barValue(s, h), barColor(s, h), (6f * k).dp)
         if (valueDp != null) {
             Spacer(GlanceModifier.width(gap.dp))
             val closed = h in s.closed
@@ -221,12 +200,8 @@ private fun HabitRow(s: HomeState, h: Habit, k: Float, rowDp: Float, valueDp: Fl
                 rowValue(s, h),
                 modifier = GlanceModifier.width(valueDp.dp),
                 style = ts(
-                    when {
-                        h == Habit.CALORIES && calorieOver(s) -> C.risk
-                        closed -> C.ink
-                        else -> C.mute
-                    },
-                    10.5f * k, FontWeight.Medium, TextAlign.End,
+                    if (closed) C.ink else C.mute,
+                    12.5f * k, FontWeight.Medium, TextAlign.End,
                 ),
                 maxLines = 1,
             )
@@ -257,16 +232,16 @@ private fun SealCenter(s: HomeState, k: Float, numberSp: Float, flame: Boolean, 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("${s.closedCount}/4", style = ts(C.ink, numberSp, FontWeight.Bold, TextAlign.Center), maxLines = 1)
         if (caption != null) {
-            Text(caption, style = ts(C.mute, 10.5f * k, FontWeight.Medium, TextAlign.Center), maxLines = 1)
+            Text(caption, style = ts(C.mute, 12f * k, FontWeight.Medium, TextAlign.Center), maxLines = 1)
         }
         if (flame) {
             Spacer(GlanceModifier.height((3f * k).dp))
             // At risk, the countdown alone (no flame icon) in a smaller size, so "2h 42m" sits well inside
             // the ring's hole instead of touching the arcs.
             if (s.atRisk) {
-                Text(countdown(s), style = ts(C.risk, 9f * k, FontWeight.Bold, TextAlign.Center), maxLines = 1)
+                Text(countdown(s), style = ts(C.risk, 10.5f * k, FontWeight.Bold, TextAlign.Center), maxLines = 1)
             } else {
-                FlameChip(s, 10.5f * k)
+                FlameChip(s, 12.5f * k)
             }
         }
     }
@@ -279,7 +254,7 @@ internal fun EmptyWidget(context: Context) {
         Box(modifier = GlanceModifier.fillMaxSize().padding(12.dp), contentAlignment = Alignment.Center) {
             Text(
                 "Open Habit Tracker",
-                style = ts(C.mute, 12f, FontWeight.Medium, TextAlign.Center),
+                style = ts(C.mute, 14f, FontWeight.Medium, TextAlign.Center),
                 maxLines = 2,
             )
         }
@@ -296,7 +271,7 @@ internal fun SealView(context: Context, s: HomeState) {
     Card(openToday(context), risk = s.atRisk) {
         Box(modifier = GlanceModifier.fillMaxSize().padding(4.dp), contentAlignment = Alignment.Center) {
             SealBlock(s, ring, GlanceModifier.fillMaxSize()) {
-                SealCenter(s, k, 26f * k, flame = true)
+                SealCenter(s, k, 28f * k, flame = true)
             }
         }
     }
@@ -313,8 +288,8 @@ internal fun ListView(context: Context, s: HomeState) {
     Card(openToday(context), risk = s.atRisk) {
         Column(modifier = GlanceModifier.fillMaxSize().padding(pad.dp)) {
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Today", modifier = GlanceModifier.defaultWeight(), style = ts(C.ink, 13f * k, FontWeight.Bold), maxLines = 1)
-                FlameChip(s, 11.5f * k)
+                Text("Today", modifier = GlanceModifier.defaultWeight(), style = ts(C.ink, 15f * k, FontWeight.Bold), maxLines = 1)
+                FlameChip(s, 13.5f * k)
             }
             for (h in Habit.entries) {
                 Spacer(GlanceModifier.defaultWeight())
@@ -339,8 +314,8 @@ internal fun StreakView(context: Context, s: HomeState) {
         Column(modifier = GlanceModifier.fillMaxSize().padding((14f * k).dp)) {
             Icon(R.drawable.ic_w_flame, color, (20f * k).dp)
             Spacer(GlanceModifier.defaultWeight())
-            Text(s.streak.toString(), style = ts(color, 38f * k, FontWeight.Bold), maxLines = 1)
-            Text(caption, style = ts(if (s.atRisk) C.risk else C.mute, 11f * k, FontWeight.Medium), maxLines = 1)
+            Text(s.streak.toString(), style = ts(color, 40f * k, FontWeight.Bold), maxLines = 1)
+            Text(caption, style = ts(if (s.atRisk) C.risk else C.mute, 13f * k, FontWeight.Medium), maxLines = 1)
         }
     }
 }
@@ -374,7 +349,7 @@ internal fun BathView(s: HomeState) {
                     Icon(R.drawable.ic_w_check, ON_BATH, (28f * k).dp)
                 }
                 Spacer(GlanceModifier.height((4f * k).dp))
-                Text("Bath · $time", style = ts(C.mute, 11f * k, FontWeight.Medium, TextAlign.Center), maxLines = 1)
+                Text("Bath · $time", style = ts(C.mute, 13.5f * k, FontWeight.Medium, TextAlign.Center), maxLines = 1)
             } else {
                 val box = 66f * k
                 Box(modifier = GlanceModifier.size(box.dp), contentAlignment = Alignment.Center) {
@@ -387,7 +362,7 @@ internal fun BathView(s: HomeState) {
                     Icon(R.drawable.ic_w_bath, C.bath, (28f * k).dp)
                 }
                 Spacer(GlanceModifier.height((10f * k).dp))
-                Text("Hold to log bath", style = ts(C.mute, 11f * k, FontWeight.Medium, TextAlign.Center), maxLines = 1)
+                Text("Hold to log bath", style = ts(C.mute, 13.5f * k, FontWeight.Medium, TextAlign.Center), maxLines = 1)
             }
         }
     }
@@ -418,7 +393,7 @@ internal fun StripView(context: Context, s: HomeState) {
                 }
             }
             Spacer(GlanceModifier.defaultWeight())
-            FlameChip(s, 15f * k)
+            FlameChip(s, 17f * k)
         }
     }
 }
@@ -433,7 +408,7 @@ internal fun WideView(context: Context, s: HomeState) {
     // Tight vertically: four rows and the footer have to fit in 150dp at the cover screen's density and
     // font scale too (14dp clipped the footer's descenders there).
     val padV = 8f * k
-    val seal = minOf(dims.height.value - 2f - 2 * padV, 120f * k).coerceAtLeast(56f)
+    val seal = minOf(dims.height.value - 2f - 2 * padV, 108f * k).coerceAtLeast(56f)
     val gap = 14f * k
     val rowDp = dims.width.value - 2f - 2 * padH - seal - gap
     val footer = when {
@@ -456,11 +431,11 @@ internal fun WideView(context: Context, s: HomeState) {
             Spacer(GlanceModifier.width(gap.dp))
             Column(modifier = GlanceModifier.defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
                 Habit.entries.forEachIndexed { i, h ->
-                    if (i > 0) Spacer(GlanceModifier.height((5f * k).dp))
-                    HabitRow(s, h, k, rowDp, valueDp = 70f * k)
+                    if (i > 0) Spacer(GlanceModifier.height((4f * k).dp))
+                    HabitRow(s, h, k, rowDp, valueDp = 80f * k)
                 }
                 Spacer(GlanceModifier.height((5f * k).dp))
-                Text(footer, style = ts(footerColor, 10f * k, FontWeight.Bold), maxLines = 1)
+                Text(footer, style = ts(footerColor, 12.5f * k, FontWeight.Bold), maxLines = 1)
             }
         }
     }
@@ -477,9 +452,9 @@ private fun Pill(icon: Int, text: String, color: Color, k: Float) {
             .padding(horizontal = (9f * k).dp, vertical = (4f * k).dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, color, (13f * k).dp)
+        Icon(icon, color, (15f * k).dp)
         Spacer(GlanceModifier.width((4f * k).dp))
-        Text(text, style = ts(color, 12f * k, FontWeight.Bold), maxLines = 1)
+        Text(text, style = ts(color, 14f * k, FontWeight.Bold), maxLines = 1)
     }
 }
 
@@ -519,8 +494,8 @@ internal fun LargeView(context: Context, s: HomeState) {
         Column(modifier = GlanceModifier.fillMaxSize().padding(pad.dp)) {
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = GlanceModifier.defaultWeight()) {
-                    Text(s.now.format(DATE), style = ts(C.mute, 11f * k, FontWeight.Medium), maxLines = 1)
-                    Text("Habit Tracker", style = ts(C.ink, 15f * k, FontWeight.Bold), maxLines = 1)
+                    Text(s.now.format(DATE), style = ts(C.mute, 13f * k, FontWeight.Medium), maxLines = 1)
+                    Text("Habit Tracker", style = ts(C.ink, 17f * k, FontWeight.Bold), maxLines = 1)
                 }
                 Pill(R.drawable.ic_w_flame, s.streak.toString(), if (s.atRisk) C.risk else C.flame, k)
                 Spacer(GlanceModifier.width((6f * k).dp))
@@ -533,12 +508,12 @@ internal fun LargeView(context: Context, s: HomeState) {
                 Column(modifier = GlanceModifier.defaultWeight()) {
                     Habit.entries.forEachIndexed { i, h ->
                         if (i > 0) Spacer(GlanceModifier.height((10f * k).dp))
-                        HabitRow(s, h, k, rowDp, valueDp = 70f * k)
+                        HabitRow(s, h, k, rowDp, valueDp = 80f * k)
                     }
                 }
             }
             Spacer(GlanceModifier.height((8f * k).dp))
-            Text(s.sealLine, style = ts(if (s.perfect) C.flame else C.ink, 13f * k, FontWeight.Bold), maxLines = 1)
+            Text(s.sealLine, style = ts(if (s.perfect) C.flame else C.ink, 15f * k, FontWeight.Bold), maxLines = 1)
             Spacer(GlanceModifier.defaultWeight())
             Column(
                 modifier = GlanceModifier.fillMaxWidth()
@@ -547,14 +522,14 @@ internal fun LargeView(context: Context, s: HomeState) {
                     .padding(horizontal = (12f * k).dp, vertical = (9f * k).dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(if (s.atRisk) R.drawable.ic_w_flame else R.drawable.ic_w_spark, cardColor, (12f * k).dp)
+                    Icon(if (s.atRisk) R.drawable.ic_w_flame else R.drawable.ic_w_spark, cardColor, (14f * k).dp)
                     Spacer(GlanceModifier.width((5f * k).dp))
-                    Text(cardTitle, style = ts(cardColor, 10f * k, FontWeight.Bold), maxLines = 1)
+                    Text(cardTitle, style = ts(cardColor, 12f * k, FontWeight.Bold), maxLines = 1)
                 }
                 Spacer(GlanceModifier.height((3f * k).dp))
                 Text(
-                    balanced(context, cardBody, inner - 24f * k, 12.5f * k),
-                    style = ts(C.ink, 12.5f * k, FontWeight.Medium),
+                    balanced(context, cardBody, inner - 24f * k, 14.5f * k),
+                    style = ts(C.ink, 14.5f * k, FontWeight.Medium),
                     maxLines = 2,
                 )
             }
@@ -598,15 +573,14 @@ internal object Art {
     fun seal(s: HomeState, dp: Float): Bitmap {
         val px = bucket(dp, 40, 160, SEAL_MAX)
         val progress = Habit.entries.map { s.progress[it] ?: 0f }
-        val bad = if (s.calorieState == CalorieState.OVER) Habit.CALORIES.ordinal else null
-        val key = "seal:$px:${progress.joinToString(",") { q(it).toString() }}:$bad"
+        val key = "seal:$px:${progress.joinToString(",") { q(it).toString() }}"
         return cached(key) {
             val bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
             val c = Canvas(bmp)
             // Wide enough that the Perfect glow's blur fades out before the bitmap edge (0.08 showed a hard box).
             val inset = px * 0.14f
             c.translate(inset, inset)
-            SealArt.draw(c, px - 2 * inset, progress, t = 0.6f, stroke = 10f, bad = bad)
+            SealArt.draw(c, px - 2 * inset, progress, t = 0.6f, stroke = 10f)
             bmp
         }
     }

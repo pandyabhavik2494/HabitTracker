@@ -16,7 +16,11 @@ import com.pandyabhavik.habittracker.core.Day
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
-/** One day of the four habits. Health Connect fills steps, food and weight; the app fills the rest. */
+/**
+ * One day of the four habits. Health Connect fills steps and weight; the app fills the rest.
+ * The calorie columns are left over from the MyFitnessPal sync and are no longer read or written.
+ * [kitchenClosedAt] now holds when meals were marked logged (kept under its old name so no migration is needed).
+ */
 @Entity(tableName = "days")
 data class DayEntity(
     @PrimaryKey val date: String,
@@ -41,13 +45,8 @@ data class DayEntity(
     fun toDay() = Day(
         date = LocalDate.parse(date),
         steps = steps,
-        calories = calories,
-        meals = meals,
-        breakfast = breakfast,
-        lunch = lunch,
-        dinner = dinner,
-        snacks = snacks,
-        kitchenClosedAt = kitchenClosedAt,
+        // Days from before the meals check-in that ended perfect still count their meals quarter.
+        mealsLoggedAt = kitchenClosedAt ?: perfectAt,
         weightKg = weightKg,
         weighedAt = weighedAt,
         weightManual = weightManual,
@@ -169,13 +168,7 @@ abstract class HabitDatabase : RoomDatabase() {
 fun Day.toEntity() = DayEntity(
     date = date.toString(),
     steps = steps,
-    calories = calories,
-    meals = meals,
-    breakfast = breakfast,
-    lunch = lunch,
-    dinner = dinner,
-    snacks = snacks,
-    kitchenClosedAt = kitchenClosedAt,
+    kitchenClosedAt = mealsLoggedAt,
     weightKg = weightKg,
     weighedAt = weighedAt,
     weightManual = weightManual,

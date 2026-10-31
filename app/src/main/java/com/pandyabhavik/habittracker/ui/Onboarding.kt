@@ -126,7 +126,7 @@ private fun Welcome(screenHeight: androidx.compose.ui.unit.Dp, next: () -> Unit)
             Text(
                 when (h) {
                     Habit.STEPS -> "10k steps · from Google Health"
-                    Habit.CALORIES -> "Under 1,500 kcal · from MyFitnessPal"
+                    Habit.CALORIES -> "Meals logged · a tap here"
                     Habit.WEIGH -> "Weigh-in · from your VeSync scale"
                     Habit.BATH -> "Bath · a long-press here"
                 },
@@ -146,14 +146,13 @@ private fun Connect(vm: MainViewModel, askHealth: () -> Unit, next: () -> Unit) 
     Text("Connect your data", style = T.big, textAlign = TextAlign.Center)
     Spacer(Modifier.height(10.dp))
     Text(
-        "Everything comes through Health Connect, on the phone. Nothing leaves it.",
+        "Steps and weight come through Health Connect, on the phone. Nothing leaves it.",
         style = T.body,
         textAlign = TextAlign.Center,
     )
     Spacer(Modifier.height(18.dp))
     Panel(Modifier.fillMaxWidth()) {
         Check("Steps", "Google Health (Fit) and your watch already write steps to Health Connect.", HealthGateway.READ_STEPS in granted)
-        Check("Food", "In MyFitnessPal: Settings › Sharing & Privacy › Health Connect, turn it on.", HealthGateway.READ_NUTRITION in granted)
         Check("Weight", "In VeSync: Me › Third-party services › Health Connect, turn it on.", HealthGateway.READ_WEIGHT in granted)
         Check("In the background", "So the Seal and widgets update every 15 minutes with the app closed.", HealthGateway.READ_IN_BACKGROUND in granted)
     }

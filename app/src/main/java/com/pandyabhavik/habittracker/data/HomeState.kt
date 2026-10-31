@@ -1,6 +1,5 @@
 package com.pandyabhavik.habittracker.data
 
-import com.pandyabhavik.habittracker.core.CalorieState
 import com.pandyabhavik.habittracker.core.Catalog
 import com.pandyabhavik.habittracker.core.Coach
 import com.pandyabhavik.habittracker.core.Day
@@ -21,7 +20,6 @@ data class HomeState(
     val days: Map<LocalDate, Day>,
     val closed: Set<Habit>,
     val progress: Map<Habit, Float>,
-    val calorieState: CalorieState,
     val perfect: Boolean,
     val streak: Int,
     val best: Int,
@@ -89,7 +87,6 @@ data class HomeState(
                 days = all,
                 closed = closed,
                 progress = Rules.progress(today, goals, now),
-                calorieState = Rules.calorieState(today, goals, now),
                 perfect = perfect,
                 streak = streak,
                 best = maxOf(Streaks.best(all), streak),

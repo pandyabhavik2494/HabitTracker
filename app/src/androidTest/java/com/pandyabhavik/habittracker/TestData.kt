@@ -7,6 +7,8 @@ import android.util.Log
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.percentOffset
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.hasAnyAncestor
@@ -66,7 +68,7 @@ enum class Scene(val hour: Int, val minute: Int) {
     /** 7:12 AM, weighed in: 1/4. */
     MORNING_WEIGHED(7, 12),
 
-    /** 1:40 PM: weigh-in and bath closed, steps and calories open, 2/4 with a next move. */
+    /** 1:40 PM: weigh-in and bath closed, steps and meals open, 2/4 with a next move. */
     MIDDAY(13, 40),
 
     /** 9:18 PM: steps still open, 3/4, the streak at risk. */
@@ -78,13 +80,13 @@ enum class Scene(val hour: Int, val minute: Int) {
     /** As [PERFECT], with a secret pack (Ragdoll) waiting too. */
     TWO_PACKS(19, 45),
 
-    /** 6:30 PM: steps and weigh-in closed, calories under with the kitchen open, bath open: 2/4. */
+    /** 6:30 PM: steps and weigh-in closed, meals and bath open: 2/4. */
     ACTION(18, 30),
 
-    /** 6:30 PM: like [ACTION] with the kitchen closed, so the bath is the 4th habit: 3/4. */
+    /** 6:30 PM: like [ACTION] with meals logged, so the bath is the 4th habit: 3/4. */
     FOURTH(18, 30),
 
-    /** 6:30 PM: steps and bath closed, calories under, the weigh-in open: 2/4. */
+    /** 6:30 PM: steps and bath closed, meals and the weigh-in open: 2/4. */
     WEIGH_OPEN(18, 30),
 
     /** 8:05 AM, the morning after 3 swaps saved yesterday: 1 swap left. */
@@ -97,7 +99,7 @@ enum class Scene(val hour: Int, val minute: Int) {
     COMEBACK(10, 20),
 
     /**
-     * 9:05 AM on a Wednesday, after 4 Wednesdays in a row over the calorie limit. Swaps saved the oldest;
+     * 9:05 AM on a Wednesday, after 4 Wednesdays in a row with meals never logged. Swaps saved the oldest;
      * the last three broke the streak, so it is 6 days (since last Wednesday).
      */
     PATTERN(9, 5),
@@ -141,7 +143,7 @@ object TestData {
     )
 
     /**
-     * Four Wednesdays in a row over the calorie limit, so the pattern card shows. Swaps saved the oldest; with
+     * Four Wednesdays in a row with meals never logged, so the pattern card shows. Swaps saved the oldest; with
      * fewer than 3 left, the other three broke the streak, so it is 6 days now. The bath slipped 15 days ago, as in the base
      * history, so the bath run (14 days) matches the other scenes.
      */
@@ -235,30 +237,18 @@ object TestData {
         val i = daysAgo
         val date = today.minusDays(i.toLong())
         val steps = if (gap?.missed == Habit.STEPS) 6_200 + (i * 137) % 1_500 else 10_150 + (i * 379) % 3_900
-        val breakfast = 280 + (i * 37) % 80
-        val lunch = 400 + (i * 53) % 80
-        // An evening out: dinner alone goes over the limit.
-        val dinner = 380 + (i * 29) % 80 + if (gap?.missed == Habit.CALORIES) 520 else 0
-        val snacks = if (i % 3 == 0) 0 else 60 + (i * 17) % 90
-        val calories = breakfast + lunch + dinner + snacks
-        val meals = listOf(breakfast, lunch, dinner, snacks).count { it > 0 } + i % 3
-        val kitchen = if (i % 2 == 0) millis(date, 19, 30, i % 25) else null
+        // A missed meals day: never marked logged.
+        val meals = if (gap?.missed == Habit.CALORIES) null else millis(date, 19, 30, i % 25)
         val weighed = gap?.missed != Habit.WEIGH
         val bathed = gap?.missed != Habit.BATH
         return Day(
             date = date,
             steps = steps,
-            calories = calories,
-            meals = meals,
-            breakfast = breakfast,
-            lunch = lunch,
-            dinner = dinner,
-            snacks = snacks,
-            kitchenClosedAt = kitchen,
+            mealsLoggedAt = meals,
             weightKg = if (weighed) weightOn(i) else null,
             weighedAt = if (weighed) millis(date, 6, 40, i % 20) else null,
             bathAt = if (bathed) millis(date, 7, 50, i % 35) else null,
-            perfectAt = if (gap == null) kitchen ?: millis(date, 20, 30) else null,
+            perfectAt = if (gap == null) millis(date, 20, 30) else null,
             savedWithSwaps = gap?.saved == true,
             pledgedAt = if (i % 5 != 3) millis(date, 7, 10) else null,
             hourly = hourly(steps, 22),
@@ -275,23 +265,20 @@ object TestData {
         val weighed = { day: Day -> day.copy(weightKg = TODAY_KG, weighedAt = millis(d, 6, 52)) }
         val bathed = { day: Day -> day.copy(bathAt = millis(d, 8, 5)) }
         val pledged = { day: Day -> day.copy(pledgedAt = millis(d, 7, 15)) }
-        fun food(day: Day, breakfast: Int, lunch: Int, dinner: Int, snacks: Int, entries: Int) = day.copy(
-            breakfast = breakfast, lunch = lunch, dinner = dinner, snacks = snacks,
-            calories = breakfast + lunch + dinner + snacks, meals = entries,
-        )
+        fun ate(day: Day, h: Int, m: Int) = day.copy(mealsLoggedAt = millis(d, h, m))
         fun walked(steps: Int) = Day(d, steps = steps, hourly = hourly(steps, scene.hour))
         return when (scene) {
             Scene.FRESH -> null
             Scene.MORNING -> walked(820)
             Scene.MORNING_WEIGHED, Scene.SAVED, Scene.PATTERN -> weighed(walked(if (scene == Scene.PATTERN) 1_460 else 820))
-            Scene.COMEBACK -> bathed(weighed(food(walked(2_350), 330, 0, 0, 0, 2)))
-            Scene.MIDDAY -> pledged(bathed(weighed(food(walked(6_140), 330, 460, 0, 0, 3))))
-            Scene.RISK -> pledged(bathed(weighed(food(walked(7_640), 330, 460, 450, 0, 5))))
+            Scene.COMEBACK -> bathed(weighed(walked(2_350)))
+            Scene.MIDDAY -> pledged(bathed(weighed(walked(6_140))))
+            Scene.RISK -> ate(pledged(bathed(weighed(walked(7_640)))), 20, 40)
             Scene.PERFECT, Scene.TWO_PACKS ->
-                pledged(bathed(weighed(food(walked(10_860), 330, 460, 520, 0, 4)))).copy(kitchenClosedAt = millis(d, 19, 20))
-            Scene.ACTION -> pledged(weighed(food(walked(10_420), 330, 460, 390, 0, 4)))
-            Scene.FOURTH -> pledged(weighed(food(walked(10_420), 330, 460, 390, 0, 4))).copy(kitchenClosedAt = millis(d, 18, 10))
-            Scene.WEIGH_OPEN -> pledged(bathed(food(walked(10_420), 330, 460, 390, 0, 4)))
+                ate(pledged(bathed(weighed(walked(10_860)))), 19, 20)
+            Scene.ACTION -> pledged(weighed(walked(10_420)))
+            Scene.FOURTH -> ate(pledged(weighed(walked(10_420))), 18, 10)
+            Scene.WEIGH_OPEN -> pledged(bathed(walked(10_420)))
         }
     }
 
@@ -609,7 +596,10 @@ class AppDriver(val compose: ComposeTestRule) {
     /** Opens a habit's sheet from its row (cover screen) or tile (inner screen). */
     fun openSheet(habit: Habit) {
         val name = habit.name.lowercase()
-        click(if (wide) "tile-$name" else "habit-$name")
+        // Tap the tile's header (wide) or the row's left side, clear of buttons inside it (the meals "Yes").
+        scrollTo(if (wide) "tile-$name" else "habit-$name")
+            .performTouchInput { click(percentOffset(0.35f, if (wide) 0.12f else 0.5f)) }
+        idle()
         waitTag("sheet-$name")
     }
 

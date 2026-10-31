@@ -91,7 +91,7 @@ object Streaks {
         return Settlement(saved, broken, runBefore, left)
     }
 
-    /** Whether [habit] closed on a finished day (the kitchen counts as locked). */
+    /** Whether [habit] closed on a finished day. */
     fun closedOn(habit: Habit, day: Day, goals: Goals): Boolean =
         Rules.closed(habit, day, goals, LocalDateTime.of(day.date, LocalTime.MAX))
 

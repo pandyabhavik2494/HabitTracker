@@ -138,7 +138,7 @@ class ActionsTest {
         app.waitText("2/4")
     }
 
-    // ---- Weigh-in and kitchen ------------------------------------------------------------------------
+    // ---- Weigh-in and meals ---------------------------------------------------------------------------
 
     @Test
     fun typedWeightInPoundsIsStoredInKilos() {
@@ -163,27 +163,42 @@ class ActionsTest {
     }
 
     @Test
-    fun kitchenClosesFromTheSheetAndReopens() {
+    fun mealsAreLoggedFromTheSheetAndUndone() {
         app.open(Scene.ACTION)
         app.waitText("2/4")
         app.openSheet(Habit.CALORIES)
-        app.assertText("1,180 kcal")
-        // A HoldButton's accessibility click completes the hold at once (the bath tests do a real hold).
-        app.scrollTo("hold-Hold to close the kitchen").performSemanticsAction(SemanticsActions.OnClick)
-        app.waitFor("the kitchen to close") { app.today()?.kitchenClosedAt != null }
+        app.assertText("Did you log your meals today?")
+        shot("46-meals-sheet")
+        app.scrollTo("meals-yes").performClick()
+        app.waitFor("meals to be marked logged") { app.today()?.mealsLoggedAt != null }
         app.waitGone("sheet-calories")
         app.waitText("3/4")
-        if (!app.wide) app.assertText("Kitchen closed · 1,180 kcal sealed")
-        showWeighIn()
-        shot("46-kitchen-closed")
+        if (!app.wide) app.assertText("Logged 6:30 PM")
+        shot("47-meals-logged")
 
         app.openSheet(Habit.CALORIES)
-        app.assertText("Kitchen closed with 320 kcal to spare.", substring = true)
-        app.text("Reopen the kitchen").performScrollTo().performClick()
-        app.waitFor("the kitchen to reopen") { app.today()?.kitchenClosedAt == null }
+        app.assertText("Meals logged at 6:30 PM.")
+        app.scrollTo("undo-meals").performClick()
+        app.waitFor("meals to be unmarked") { app.today()?.mealsLoggedAt == null }
         app.waitGone("sheet-calories")
         app.waitText("2/4")
-        shot("47-kitchen-reopened")
+    }
+
+    @Test
+    fun mealsQuickYesOnTodayLogsAndUndoes() {
+        app.open(Scene.ACTION)
+        app.waitText("2/4")
+        val quick = if (app.wide) "tile-meals-yes" else "meals-quick"
+        app.scrollTo(quick).performClick()
+        app.waitFor("meals to be marked logged") { app.today()?.mealsLoggedAt != null }
+        app.waitText("3/4")
+        app.waitText("Meals logged")
+        app.waitGone(quick)
+        shot("47b-meals-quick")
+        app.text("Undo").performClick()
+        app.waitFor("the undo to unmark meals") { app.today()?.mealsLoggedAt == null }
+        app.waitText("2/4")
+        app.waitTag(quick)
     }
 
     // ---- Pledge -------------------------------------------------------------------------------------
@@ -309,9 +324,6 @@ class ActionsTest {
         app.waitText("2/4")
         app.openSettings()
 
-        app.click("calorie-goal-plus")
-        app.waitFor("the calorie limit to be saved") { app.settings().calorieGoal == 1_550 }
-        app.node("calorie-goal-value").assertTextEquals("1,550 kcal")
         app.click("steps-goal-plus")
         app.waitFor("the steps goal to be saved") { app.settings().stepsGoal == 10_500 }
         app.node("steps-goal-value").assertTextEquals("10,500")
@@ -319,20 +331,12 @@ class ActionsTest {
         app.click("steps-goal-minus")
         app.waitFor("the steps goal to go down") { app.settings().stepsGoal == 9_500 }
         app.node("steps-goal-value").assertTextEquals("9,500")
-        app.click("kitchen-lock-minus")
-        app.waitFor("the kitchen lock to be saved") { app.settings().kitchenLockMinute == 20 * 60 + 15 }
-        app.assertTagText("kitchen-lock-value", "8:15 PM")
         shot("56-settings-goals-changed")
 
         app.click(if (app.wide) "tab-today" else "settings-back")
         app.waitTag("today")
-        // Today follows the new goals.
-        app.waitText("1,550", substring = true)
-        if (!app.wide) {
-            app.assertText("Under 1,550 kcal")
-            app.assertText("9.5k steps")
-            app.assertText("kitchen locks 8:15 PM", substring = true)
-        }
+        // Today follows the new goal.
+        if (app.wide) app.waitText("/ 9.5k", substring = true) else app.waitText("9.5k steps")
         showWeighIn()
         shot("57-today-new-goals")
     }
@@ -508,19 +512,19 @@ class ActionsTest {
         assertNull(Notifier.nudgeText(Slot.MIDDAY, state(LocalTime.of(12, 30), behind) { it.copy(notifyMidday = false) }))
 
         // 5 PM warning, on the weekday the person asked for.
-        val lunch = Day(date, steps = 6_000, calories = 700, meals = 2, lunch = 700)
+        val lunch = Day(date, steps = 6_000)
         val warn = sensible(
             Slot.WARN,
             Notifier.nudgeText(Slot.WARN, state(LocalTime.of(17, 0), lunch) { it.copy(warnDay = date.dayOfWeek, warnHabit = Habit.CALORIES) }),
         )
         assertEquals("It's Wednesday.", warn.first)
-        assertTrue(warn.second, warn.second.contains("800 kcal left"))
+        assertTrue(warn.second, warn.second.contains("meals go unlogged"))
         assertNull(Notifier.nudgeText(Slot.WARN, state(LocalTime.of(17, 0), lunch) { it.copy(warnDay = DayOfWeek.MONDAY, warnHabit = Habit.CALORIES) }))
         assertNull(Notifier.nudgeText(Slot.WARN, state(LocalTime.of(17, 0), lunch)))
 
         // 9 PM at risk.
         val stepsOpen = Day(
-            date, steps = 7_600, calories = 1_200, meals = 4, breakfast = 300, lunch = 500, dinner = 400,
+            date, steps = 7_600, mealsLoggedAt = at(19, 0),
             weightKg = 88.4, weighedAt = at(6, 50), bathAt = at(8, 5),
         )
         val risk = sensible(Slot.RISK, Notifier.nudgeText(Slot.RISK, state(LocalTime.of(21, 0), stepsOpen)))
@@ -538,11 +542,15 @@ class ActionsTest {
         val last = sensible(Slot.LAST_CALL, Notifier.nudgeText(Slot.LAST_CALL, state(LocalTime.of(23, 0), bathOpen)))
         assertEquals("Bath is the last quarter.", last.first)
         assertEquals("60 minutes left. Already had one? Tap to log it.", last.second)
+        val mealsOpen = stepsOpen.copy(steps = 10_300, mealsLoggedAt = null)
+        val lastMeals = sensible(Slot.LAST_CALL, Notifier.nudgeText(Slot.LAST_CALL, state(LocalTime.of(23, 0), mealsOpen)))
+        assertEquals("The meals check-in is the last quarter.", lastMeals.first)
+        assertEquals("60 minutes left. Logged them? Tap to close it.", lastMeals.second)
         val lastTwo = sensible(Slot.LAST_CALL, Notifier.nudgeText(Slot.LAST_CALL, state(LocalTime.of(23, 0), stepsOpen.copy(bathAt = null))))
         assertEquals("2 quarters open, 60 minutes left.", lastTwo.first)
 
         // A Perfect Day is never nagged about.
-        val perfect = stepsOpen.copy(steps = 10_300, kitchenClosedAt = at(19, 0))
+        val perfect = stepsOpen.copy(steps = 10_300)
         for (slot in Slot.entries) {
             val time = LocalTime.of(slot.minute / 60, slot.minute % 60)
             assertNull("$slot after a Perfect Day", Notifier.nudgeText(slot, state(time, perfect) { it.copy(warnDay = date.dayOfWeek, warnHabit = Habit.BATH) }))

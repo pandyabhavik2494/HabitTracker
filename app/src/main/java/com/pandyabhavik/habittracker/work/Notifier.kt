@@ -12,7 +12,6 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.pandyabhavik.habittracker.MainActivity
 import com.pandyabhavik.habittracker.R
-import com.pandyabhavik.habittracker.core.CalorieState
 import com.pandyabhavik.habittracker.core.Catalog
 import com.pandyabhavik.habittracker.core.Coach
 import com.pandyabhavik.habittracker.core.Habit
@@ -66,8 +65,6 @@ object Notifier {
     /** What a nudge at [slot] says, or null when it should stay quiet. Public for tests. */
     fun nudgeText(slot: Slot, s: HomeState): Pair<String, String>? {
         if (s.perfect) return null
-        // Over the calorie limit, today can't close: no evening pushes that pretend it still can.
-        if (s.calorieState == CalorieState.OVER && slot in setOf(Slot.WARN, Slot.RISK, Slot.LAST_CALL)) return null
         val open = Habit.entries.filter { it !in s.closed }
         val n = Coach::n
         return when (slot) {
@@ -85,7 +82,7 @@ object Notifier {
                 val h = s.settings.warnHabit
                 if (wd == null || h == null || s.now.dayOfWeek != wd || h in s.closed) null else
                     "It's ${wd.getDisplayName(TextStyle.FULL, Locale.US)}." to when (h) {
-                        Habit.CALORIES -> "Your calorie trap day. ${n(s.goals.calories - s.today.calories)} kcal left: plan dinner now."
+                        Habit.CALORIES -> "The day meals go unlogged. Log them as you eat, then tap yes."
                         Habit.STEPS -> "Your steps trap day. ${n(s.goals.steps - s.today.steps)} to go: walk before dinner."
                         Habit.WEIGH -> "The day you forget the scale. 30 seconds closes it."
                         Habit.BATH -> "The day bath slips. Get it in before dinner."
@@ -111,14 +108,14 @@ object Notifier {
 
     private fun label(h: Habit) = when (h) {
         Habit.STEPS -> "Steps"
-        Habit.CALORIES -> "Calories"
+        Habit.CALORIES -> "The meals check-in"
         Habit.WEIGH -> "The weigh-in"
         Habit.BATH -> "Bath"
     }
 
     private fun lastCallTip(h: Habit, s: HomeState) = when (h) {
         Habit.STEPS -> "A ${(s.goals.steps - s.today.steps + 99) / 100}-minute walk closes it."
-        Habit.CALORIES -> if (s.calorieState == CalorieState.UNDER) "Close the kitchen to seal it." else "Log today's food in MyFitnessPal."
+        Habit.CALORIES -> "Logged them? Tap to close it."
         Habit.WEIGH -> "30 seconds on the scale closes it."
         Habit.BATH -> "Already had one? Tap to log it."
     }
@@ -137,8 +134,8 @@ object Notifier {
         if (Habit.BATH !in s.closed && slot in setOf(Slot.RISK, Slot.LAST_CALL)) {
             b.addAction(0, "Log bath", action(context, ActionReceiver.ACTION_BATH))
         }
-        if (s.calorieState == CalorieState.UNDER && slot == Slot.WARN) {
-            b.addAction(0, "Close kitchen", action(context, ActionReceiver.ACTION_KITCHEN))
+        if (Habit.CALORIES !in s.closed && slot in setOf(Slot.RISK, Slot.LAST_CALL)) {
+            b.addAction(0, "Meals logged", action(context, ActionReceiver.ACTION_MEALS))
         }
         NotificationManagerCompat.from(context).notify(NUDGE_ID, b.build())
     }
@@ -180,7 +177,7 @@ object Ongoing {
         val parts = ArrayList<String>()
         parts += "${s.closedCount} of 4"
         if (Habit.STEPS !in s.closed) parts += "${Coach.n(s.goals.steps - s.today.steps)} steps"
-        if (Habit.CALORIES !in s.closed && s.calorieState != CalorieState.OVER) parts += "${Coach.n(s.goals.calories - s.today.calories)} kcal left"
+        if (Habit.CALORIES !in s.closed) parts += "meals"
         if (Habit.WEIGH !in s.closed) parts += "weigh-in"
         if (Habit.BATH !in s.closed) parts += "bath"
         return parts.joinToString(" · ")
