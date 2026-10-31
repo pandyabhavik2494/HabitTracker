@@ -38,7 +38,7 @@ object Coach {
         return when {
             open.isEmpty() -> "Perfect Day #$nextPerfect"
             closed.isEmpty() -> "Perfect Day #$nextPerfect is up for grabs"
-            open.size == 1 -> "${leftText(open.first(), day, goals, now)} from a Perfect Day"
+            open.size == 1 -> "${leftText(open.first(), day, goals, now)} away from a Perfect Day"
             Habit.STEPS in open && day.steps >= expectedSteps(goals, now) -> "Ahead of pace"
             Habit.STEPS in open && now.hour >= 9 -> "${n(expectedSteps(goals, now) - day.steps)} steps behind pace"
             else -> "${open.size} to go"

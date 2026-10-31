@@ -207,7 +207,7 @@ class WidgetsTest {
                     Scene.RISK, "32-widgets-risk",
                     mapOf(
                         seal to "3 of 4 closed", list to countdown, streak to "ends in $countdown", bath to "Bath · 8:05 AM",
-                        strip to "steps open", wide to "$streakDays-day streak ends in $countdown", large to "STREAK ENDS IN $countdown",
+                        strip to "steps open", wide to "Streak ends in $countdown", large to "STREAK ENDS IN $countdown",
                     ),
                 ),
                 Moment(

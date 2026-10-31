@@ -164,7 +164,7 @@ class RulesTest {
     @Test fun sealLineNamesTheLastQuarter() {
         val d = Day(today, steps = 8_760, calories = 1_380, meals = 4, kitchenClosedAt = 1, weighedAt = 1, bathAt = 1)
         val closed = Rules.closedSet(d, goals, at(21, 18))
-        assertEquals("1,240 steps from a Perfect Day", Coach.sealLine(d, goals, at(21, 18), closed, 24))
+        assertEquals("1,240 steps away from a Perfect Day", Coach.sealLine(d, goals, at(21, 18), closed, 24))
         assertEquals("Perfect Day #24 is up for grabs", Coach.sealLine(Day(today), goals, at(7), emptySet(), 24))
     }
 

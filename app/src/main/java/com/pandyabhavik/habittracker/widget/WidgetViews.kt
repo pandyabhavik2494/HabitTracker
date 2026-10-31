@@ -182,12 +182,14 @@ private fun rowValue(s: HomeState, h: Habit): String = when (h) {
 /** A rounded bar. [trackDp] is the expected track width, used for the fill; the track itself takes [modifier]. */
 @Composable
 private fun Bar(modifier: GlanceModifier, trackDp: Float, value: Float, color: Color, thick: Dp) {
-    Box(modifier = modifier.height(thick).background(TRACK).cornerRadius(thick / 2)) {
-        if (value > 0f) {
-            val fill = (trackDp * value).coerceAtLeast(thick.value)
-            Box(modifier = GlanceModifier.width(fill.dp).height(thick).background(color).cornerRadius(thick / 2)) {}
-        }
-    }
+    // A nested fixed-width Box doesn't reliably size inside a weighted one in RemoteViews (the fill came out
+    // full width), so the bar is a small bitmap stretched to the track.
+    Image(
+        provider = ImageProvider(Art.bar(color, TRACK, value, trackDp, thick.value)),
+        contentDescription = null,
+        modifier = modifier.height(thick),
+        contentScale = ContentScale.FillBounds,
+    )
 }
 
 /** Icon, bar and (optionally) a right-aligned value of [valueDp] width. */
@@ -316,10 +318,10 @@ internal fun StreakView(context: Context, s: HomeState) {
         else -> "day streak"
     }
     Card(openToday(context), risk = s.atRisk, glow = Art.glow(color, if (s.atRisk) 0.22f else 0.16f)) {
-        Column(modifier = GlanceModifier.fillMaxSize().padding((16f * k).dp)) {
-            Icon(R.drawable.ic_w_flame, color, (24f * k).dp)
+        Column(modifier = GlanceModifier.fillMaxSize().padding((14f * k).dp)) {
+            Icon(R.drawable.ic_w_flame, color, (20f * k).dp)
             Spacer(GlanceModifier.defaultWeight())
-            Text(s.streak.toString(), style = ts(color, 44f * k, FontWeight.Bold), maxLines = 1)
+            Text(s.streak.toString(), style = ts(color, 38f * k, FontWeight.Bold), maxLines = 1)
             Text(caption, style = ts(if (s.atRisk) C.risk else C.mute, 11f * k, FontWeight.Medium), maxLines = 1)
         }
     }
@@ -414,7 +416,7 @@ internal fun WideView(context: Context, s: HomeState) {
     val gap = 14f * k
     val rowDp = dims.width.value - 2f - 2 * padH - seal - gap
     val footer = when {
-        s.atRisk -> "${s.streak}-day streak ends in ${countdown(s)}"
+        s.atRisk -> "Streak ends in ${countdown(s)}"
         s.perfect -> "Perfect Day #${s.dayNumber} · ${s.streak} ${if (s.streak == 1) "day" else "days"}"
         s.streak > 0 -> "${s.streak}-day streak"
         else -> "Perfect Day #${s.dayNumber} is up for grabs"
@@ -592,6 +594,27 @@ internal object Art {
                 }
                 p.color = argb(color)
                 c.drawArc(oval, -90f, 360f * v, false, p)
+            }
+            bmp
+        }
+    }
+
+    /** A rounded progress bar: [track] behind, [color] up to [value]. */
+    fun bar(color: Color, track: Color, value: Float, trackDp: Float, thickDp: Float): Bitmap {
+        val w = bucket(trackDp, 8, 32, 480)
+        val h = (thickDp * PX_PER_DP).roundToInt().coerceAtLeast(4)
+        val key = "bar:$w:$h:${argb(color)}:${argb(track)}:${q(value)}"
+        return cached(key) {
+            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            val c = Canvas(bmp)
+            val r = h / 2f
+            val p = Paint(Paint.ANTI_ALIAS_FLAG)
+            p.color = argb(track)
+            c.drawRoundRect(RectF(0f, 0f, w.toFloat(), h.toFloat()), r, r, p)
+            val v = value.coerceIn(0f, 1f)
+            if (v > 0f) {
+                p.color = argb(color)
+                c.drawRoundRect(RectF(0f, 0f, (w * v).coerceAtLeast(h.toFloat()), h.toFloat()), r, r, p)
             }
             bmp
         }
