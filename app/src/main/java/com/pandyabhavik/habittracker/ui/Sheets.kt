@@ -151,12 +151,17 @@ private fun MealsSheet(s: HomeState, close: () -> Unit) {
     val at = d.mealsLoggedAt
     if (at == null) {
         Text("Did you log your meals today?", style = T.h2)
-        Text("Log them wherever you like, then tap yes. That closes this quarter.", style = T.body)
-        SheetButton("Yes, all logged", C.calories, Color(0xFF1E0E02), Modifier.testTag("meals-yes")) {
+        Text("Log them wherever you like, then hold here. That closes this quarter.", style = T.body)
+        HoldButton(
+            "Hold to log meals",
+            modifier = habitHold(C.calories),
+            haptics = s.settings.haptics,
+            brush = habitFill(C.calories),
+        ) {
             a.vm.logMeals()
             close()
         }
-        Text("Shortcut: tap Yes on Today, or Meals logged on the evening nudge.", style = T.small)
+        Text("Shortcut: long-press Meals on Today, or Meals logged on the evening nudge.", style = T.small)
     } else {
         Text("Meals logged at ${F.time(at, s.zone)}.", style = T.h2)
         val opened = s.packs.any { it.date == d.date.toString() && it.openedAt != null }

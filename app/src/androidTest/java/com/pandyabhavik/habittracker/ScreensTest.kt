@@ -147,7 +147,7 @@ class ScreensTest {
 
         app.openSheet(Habit.CALORIES)
         app.assertText("Did you log your meals today?")
-        app.waitTag("meals-yes")
+        app.waitTag("hold-Hold to log meals")
         shot("12-sheet-meals")
         app.back()
         app.waitGone("sheet-calories")

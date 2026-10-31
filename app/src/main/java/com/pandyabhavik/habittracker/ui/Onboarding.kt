@@ -126,7 +126,7 @@ private fun Welcome(screenHeight: androidx.compose.ui.unit.Dp, next: () -> Unit)
             Text(
                 when (h) {
                     Habit.STEPS -> "10k steps · from Google Health"
-                    Habit.CALORIES -> "Meals logged · a tap here"
+                    Habit.CALORIES -> "Meals logged · a long-press here"
                     Habit.WEIGH -> "Weigh-in · from your VeSync scale"
                     Habit.BATH -> "Bath · a long-press here"
                 },

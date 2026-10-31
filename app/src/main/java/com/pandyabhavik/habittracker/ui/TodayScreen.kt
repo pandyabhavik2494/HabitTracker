@@ -513,7 +513,7 @@ private fun RiskCard(s: HomeState) {
             }
             Habit.CALORIES -> if (open.size == 1) {
                 Spacer(Modifier.height(12.dp))
-                MealsYes(s, Modifier.fillMaxWidth().height(50.dp).testTag("risk-meals-yes"), "Yes, I logged my meals")
+                HoldButton("Hold to log meals", haptics = s.settings.haptics) { a.vm.logMeals() }
             }
             Habit.STEPS -> StartWalk()
             else -> Unit
@@ -724,10 +724,12 @@ private fun HabitRows(s: HomeState, onHabit: (Habit) -> Unit) {
                 )
                 Habit.CALORIES -> HabitRow(
                     h, F.habitName(h, s),
-                    d.mealsLoggedAt?.let { "Logged ${F.time(it, s.zone)}" } ?: "Did you log them today?".keepLast(),
+                    d.mealsLoggedAt?.let { "Logged ${F.time(it, s.zone)}" } ?: "Logged them? Long-press".keepLast(),
                     null, 0f, closed,
-                    trailing = if (closed) null else ({ MealsYes(s, Modifier.height(36.dp).testTag("meals-quick"), "Yes") }),
+                    trailing = if (closed) null else ({ Icon(Icons.Rounded.TouchApp, null, tint = C.calories) }),
+                    modifier = Modifier.semantics { onLongClick("Log meals") { logMeals(a, s, view); true } },
                     onClick = { onHabit(h) },
+                    onLongPress = if (closed) null else ({ logMeals(a, s, view) }),
                 )
                 Habit.WEIGH -> HabitRow(
                     h, "Weigh-in",
@@ -912,24 +914,32 @@ fun HourBars(hourly: List<Int>, nowHour: Int, modifier: Modifier) {
     }
 }
 
-/** The meals quarter is a manual yes/no: "Did you log your meals today?" */
+/** The meals quarter is a manual yes/no: "Did you log your meals today?", long-pressed like Bath. */
 @Composable
 private fun MealsTile(s: HomeState, modifier: Modifier, onClick: () -> Unit) {
+    val a = LocalActions.current
+    val view = LocalView.current
     val d = s.today
-    Tile(Habit.CALORIES, "Meals", s, modifier, onClick) {
+    Tile(
+        Habit.CALORIES, "Meals", s, modifier, onClick,
+        onLongPress = if (d.mealsLoggedAt == null) ({ logMeals(a, s, view) }) else null,
+    ) {
         val at = d.mealsLoggedAt
         if (at != null) {
             val parts = F.time(at, s.zone).split(F.NBSP)
             BigValue(parts[0], parts.getOrElse(1) { "" })
-            ValueHint("Meals logged today.")
         } else {
-            Text("Did you log your meals today?".keepLast(), style = T.h2)
-            Spacer(Modifier.height(10.dp))
-            MealsYes(s, Modifier.fillMaxWidth().height(44.dp).testTag("tile-meals-yes"), "Yes, all logged")
+            EmptyValue("", "Not yet today.")
         }
         Spacer(Modifier.height(8.dp))
         val run = mealsRun(s)
-        if (run > 1) Text("$run days in a row.", style = T.small)
+        Text(
+            listOfNotNull(
+                if (run > 1) "$run days in a row." else null,
+                if (at == null) "Logged them? Long-press." else null,
+            ).joinToString(" "),
+            style = T.small,
+        )
     }
 }
 
@@ -945,26 +955,9 @@ private fun mealsRun(s: HomeState): Int {
     return n
 }
 
-/** The one-tap "yes, I logged my meals" button, with Undo unless it made the Perfect Day. */
-@Composable
-private fun MealsYes(s: HomeState, modifier: Modifier, label: String) {
-    val a = LocalActions.current
-    val view = LocalView.current
-    Box(
-        modifier
-            .clip(CircleShape)
-            .background(C.calories)
-            .clickable { logMeals(a, s, view) }
-            .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, style = T.label.copy(color = Color(0xFF1E0E02)), maxLines = 1)
-    }
-}
-
 private fun logMeals(a: AppActions, s: HomeState, view: android.view.View) {
     if (s.today.mealsLoggedAt != null) return
-    if (s.settings.haptics) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+    if (s.settings.haptics) view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
     // The check-in that closes the last quarter makes the Perfect Day and its pack; that can't be undone.
     val makesPerfect = Habit.entries.all { it == Habit.CALORIES || it in s.closed }
     a.vm.logMeals()

@@ -169,7 +169,7 @@ class ActionsTest {
         app.openSheet(Habit.CALORIES)
         app.assertText("Did you log your meals today?")
         shot("46-meals-sheet")
-        app.scrollTo("meals-yes").performClick()
+        app.scrollTo("hold-Hold to log meals").performSemanticsAction(SemanticsActions.OnClick)
         app.waitFor("meals to be marked logged") { app.today()?.kitchenClosedAt != null }
         app.waitGone("sheet-calories")
         app.waitText("3/4")
@@ -185,20 +185,22 @@ class ActionsTest {
     }
 
     @Test
-    fun mealsQuickYesOnTodayLogsAndUndoes() {
+    fun longPressLogsMealsAndUndoRemovesThem() {
         app.open(Scene.ACTION)
         app.waitText("2/4")
-        val quick = if (app.wide) "tile-meals-yes" else "meals-quick"
-        app.scrollTo(quick).performClick()
+        if (app.wide) {
+            app.scrollTo("tile-calories").performTouchInput { longClick() }
+        } else {
+            app.scrollTo("habit-calories").performSemanticsAction(SemanticsActions.OnLongClick)
+        }
+        app.idle()
         app.waitFor("meals to be marked logged") { app.today()?.kitchenClosedAt != null }
-        app.waitText("3/4")
         app.waitText("Meals logged")
-        app.waitGone(quick)
-        shot("47b-meals-quick")
+        app.waitText("3/4")
+        shot("47b-meals-long-pressed")
         app.text("Undo").performClick()
         app.waitFor("the undo to unmark meals") { app.today()?.kitchenClosedAt == null }
         app.waitText("2/4")
-        app.waitTag(quick)
     }
 
     // ---- Pledge -------------------------------------------------------------------------------------
