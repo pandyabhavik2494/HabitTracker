@@ -1,8 +1,11 @@
 package com.pandyabhavik.habittracker.widget
 
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -60,6 +63,11 @@ class BathHoldActivity : ComponentActivity() {
     private var busy = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Draw under the status and navigation bars so the dim covers the whole screen.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
+        )
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
             state = try {

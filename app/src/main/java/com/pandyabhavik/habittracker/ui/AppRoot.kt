@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,6 +55,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
@@ -228,11 +230,15 @@ private fun Main(
                     Modifier
                         .widthIn(max = 560.dp)
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(16.dp),
                 ) { data ->
+                    val shape = RoundedCornerShape(14.dp)
                     Snackbar(
                         data,
-                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .shadow(10.dp, shape, ambientColor = Color.Black, spotColor = Color.Black)
+                            .border(1.dp, C.line, shape),
+                        shape = shape,
                         containerColor = Color(0xFF1A1C24),
                         contentColor = C.ink,
                         actionColor = C.bath,

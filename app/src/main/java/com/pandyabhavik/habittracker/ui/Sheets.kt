@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -35,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -42,7 +44,11 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pandyabhavik.habittracker.core.CalorieState
@@ -50,6 +56,7 @@ import com.pandyabhavik.habittracker.core.Habit
 import com.pandyabhavik.habittracker.core.Rules
 import com.pandyabhavik.habittracker.data.HomeState
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /** Detail and actions for one habit: tap a row or tile. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,6 +79,8 @@ fun HabitSheet(habit: Habit, s: HomeState, onDismiss: () -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .navigationBarsPadding()
+                // A no-op when the sheet's own insets already lifted it above the keyboard.
+                .imePadding()
                 .padding(bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -121,9 +130,12 @@ private fun StepsSheet(s: HomeState) {
         if (left == 0) "Closed. Every step from here is a bonus." else "${F.n(left)} to go. About ${Rules.walkMinutes(left)} minutes of walking.",
         style = T.body,
     )
-    HourBars(d.hourly, s.now.hour, Modifier.fillMaxWidth().height(80.dp))
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        HourBars(d.hourly, s.now.hour, Modifier.fillMaxWidth().height(80.dp))
+        HourLabels(Modifier.fillMaxWidth())
+    }
     Text(
-        "From Health Connect: Google Health (Fit), your watch and the phone, de-duplicated by Health Connect's own source order.",
+        "From Health Connect: Google Health (Fit), your watch and the phone, de-duplicated by Health Connect's own source\u00A0order.",
         style = T.small,
     )
     val context = LocalContext.current
@@ -178,8 +190,10 @@ private fun CaloriesSheet(s: HomeState, close: () -> Unit) {
     val granted by a.vm.granted.collectAsStateWithLifecycle()
     val grantedChecked by a.vm.grantedChecked.collectAsStateWithLifecycle()
     val noAccess = grantedChecked && HealthGateway.READ_NUTRITION !in granted
-    val recentMeals = (0L..3L).any { back -> (s.days[d.date.minusDays(back)]?.meals ?: 0) > 0 } || d.meals > 0
-    if (noAccess || !recentMeals) {
+    // Anything logged today means meals are arriving, whatever the permission check says.
+    val loggedToday = d.meals > 0 || d.calories > 0
+    val recentMeals = (1L..3L).any { back -> (s.days[d.date.minusDays(back)]?.meals ?: 0) > 0 }
+    if (!loggedToday && (noAccess || !recentMeals)) {
         Text("In MyFitnessPal, turn on Settings › Sharing & Privacy › Health Connect so meals reach this app.", style = T.small)
     }
 }
@@ -188,23 +202,25 @@ private fun CaloriesSheet(s: HomeState, close: () -> Unit) {
 private fun WeighSheet(s: HomeState, close: () -> Unit) {
     val a = LocalActions.current
     val d = s.today
-    d.weightKg?.let {
-        Text(F.weight(it, s.settings.pounds), style = T.hero.copy(fontSize = 40.sp))
-        Text(
-            listOfNotNull(
-                d.weighedAt?.let { t -> "${if (d.weightManual) "Typed in" else "From your scale"} at ${F.time(t, s.zone)}" },
-                F.weightTrend(s, it),
-            ).joinToString(" · "),
-            style = T.body,
-        )
-    } ?: Text("Step on your scale. VeSync sends the weigh-in to Health Connect and this quarter closes on its own.", style = T.body)
+    val today = d.weightKg
+    if (today != null) {
+        Text(F.weight(today, s.settings.pounds), style = T.hero.copy(fontSize = 40.sp))
+        F.weightTrend(s, today)?.let { trend -> Text(trend, style = T.body) }
+    } else {
+        Text("Step on your scale. VeSync sends the weigh-in to Health Connect and this quarter closes on its own.", style = T.body)
+    }
     var text by remember { mutableStateOf("") }
     val unit = F.unit(s.settings.pounds)
     val logged = d.weightKg
     if (logged != null) {
         // Saving now replaces today's weigh-in, so say what's there.
         Text(
-            "Logged ${F.weight(logged, s.settings.pounds)}${d.weighedAt?.let { t -> " at ${F.time(t, s.zone)}" } ?: ""}",
+            buildAnnotatedString {
+                append("Logged ${F.weight(logged, s.settings.pounds)}${d.weighedAt?.let { t -> " at ${F.time(t, s.zone)}" } ?: ""}")
+                withStyle(SpanStyle(color = C.mute, fontWeight = FontWeight.Normal)) {
+                    append(if (d.weightManual) " · typed in" else " · from your scale")
+                }
+            },
             style = T.label,
             modifier = Modifier.testTag("weight-logged"),
         )
@@ -259,7 +275,7 @@ private fun BathSheet(s: HomeState, close: () -> Unit) {
             a.vm.logBath()
             close()
         }
-        Text("Shortcut: long-press the Bath row, or use the Bath widget.", style = T.small)
+        Text("Shortcut: long-press Bath on Today, or use the Bath widget.", style = T.small)
     } else {
         Text("Logged at ${F.time(d.bathAt!!, s.zone)}.", style = T.h2)
         val opened = s.packs.any { it.date == d.date.toString() && it.openedAt != null }
@@ -267,6 +283,25 @@ private fun BathSheet(s: HomeState, close: () -> Unit) {
             OutlinedSheetButton("Remove today's bath", C.risk, Modifier.testTag("undo-bath")) {
                 a.vm.undoBath()
                 close()
+            }
+        }
+    }
+}
+
+/** Sparse time marks under [HourBars], each centred on its hour's bar. */
+@Composable
+private fun HourLabels(modifier: Modifier) {
+    val marks = listOf(6 to "6a", 12 to "12p", 18 to "6p")
+    Layout(
+        content = { marks.forEach { (_, label) -> Text(label, style = T.small.copy(color = C.dim, fontSize = 11.sp)) } },
+        modifier = modifier,
+    ) { measurables, constraints ->
+        val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
+        val width = constraints.maxWidth
+        layout(width, placeables.maxOfOrNull { it.height } ?: 0) {
+            placeables.forEachIndexed { i, p ->
+                val centre = (width * (marks[i].first + 0.5f) / 24f).roundToInt()
+                p.placeRelative((centre - p.width / 2).coerceIn(0, (width - p.width).coerceAtLeast(0)), 0)
             }
         }
     }

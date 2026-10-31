@@ -11,6 +11,15 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 
+/**
+ * Joins the last two words with a no-break space, so the last word never sits alone on a line
+ * ("…the only way to get her.").
+ */
+fun String.keepLast(): String {
+    val i = trimEnd().lastIndexOf(' ')
+    return if (i <= 0) this else substring(0, i) + F.NBSP + substring(i + 1)
+}
+
 object F {
     /** A no-break space: keeps "AM"/"PM" on the line with its time. */
     const val NBSP = '\u00A0'

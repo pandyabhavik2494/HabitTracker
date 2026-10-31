@@ -10,7 +10,7 @@ import kotlin.random.Random
  * a grey-teal-blue-violet ladder for pack rarities, pink and coral for the special cats. Never yellow.
  */
 enum class Rarity(val label: String, val odds: String, val argb: Long) {
-    COMMON("Common", "60%", 0xFFC9CED9),
+    COMMON("Common", "3 in 5", 0xFFC9CED9),
     UNCOMMON("Uncommon", "1 in 4", 0xFF5ED6C0),
     RARE("Rare", "1 in 10", 0xFF6FA8FF),
     HOLO("Holo", "1 in 20", 0xFFC49BFF),
@@ -79,8 +79,11 @@ object Packs {
     /** Out of 100: Common 60, Uncommon 25, Rare 10, Holo 5. */
     val ODDS = listOf(Rarity.COMMON to 60, Rarity.UNCOMMON to 25, Rarity.RARE to 10, Rarity.HOLO to 5)
 
-    /** The same odds each rarity shows on its own ([Rarity.odds]). */
-    const val ODDS_TEXT = "Common 60% · Uncommon 1 in 4 · Rare 1 in 10 · Holo 1 in 20"
+    /**
+     * The same odds each rarity shows on its own ([Rarity.odds]), all as "N in M". Non-breaking spaces
+     * inside each item, so a line only ever wraps between items, never leaving "20" alone.
+     */
+    val ODDS_TEXT: String = ODDS.joinToString(" · ") { (r, _) -> "${r.label} ${r.odds}".replace(' ', '\u00A0') }
 
     fun rollRarity(random: Random, atLeast: Rarity? = null): Rarity {
         val allowed = ODDS.filter { atLeast == null || it.first.ordinal >= atLeast.ordinal }

@@ -221,8 +221,8 @@ private fun Sealed(s: HomeState, pack: PackEntity, onOpened: (PackResult) -> Uni
             Text(
                 when {
                     fixedCat != null -> "${Catalog.find(fixedCat)?.rarity?.label ?: ""} · one of a kind"
-                    minRarity == Rarity.HOLO.name -> "Holo 100%"
-                    minRarity == Rarity.RARE.name -> "Rare 67% · Holo 33%"
+                    minRarity == Rarity.HOLO.name -> "Holo${F.NBSP}guaranteed"
+                    minRarity == Rarity.RARE.name -> "Rare${F.NBSP}2${F.NBSP}in${F.NBSP}3 · Holo${F.NBSP}1${F.NBSP}in${F.NBSP}3"
                     else -> Packs.ODDS_TEXT
                 },
                 style = T.small,
@@ -331,6 +331,7 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
     val more = others.firstOrNull()
     // Where the text and buttons sit, in this screen's coordinates, so the confetti can fall around them.
     val textArea = remember { mutableStateOf(Rect.Zero) }
+    val headerArea = remember { mutableStateOf(Rect.Zero) }
     val origin = remember { mutableStateOf(Offset.Zero) }
 
     Box(Modifier.fillMaxSize().onGloballyPositioned { origin.value = it.positionInRoot() }) {
@@ -357,7 +358,7 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
                     }
                 },
         )
-        Confetti(clock) { textArea.value.translate(-origin.value) }
+        Confetti(clock) { listOf(textArea.value.translate(-origin.value), headerArea.value.translate(-origin.value)) }
         // Centred on tall screens, scrollable on short ones.
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
             val minHeight = maxHeight
@@ -370,7 +371,9 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text(cat.rarity.line.uppercase(), style = T.caps.copy(color = color, letterSpacing = 3.sp), modifier = Modifier.testTag("reveal-rarity"))
+                Text(cat.rarity.line.uppercase(), style = T.caps.copy(color = color, letterSpacing = 3.sp), modifier = Modifier
+                    .onGloballyPositioned { headerArea.value = Rect(it.positionInRoot(), it.size.toSize()) }
+                    .testTag("reveal-rarity"))
                 Spacer(Modifier.height(14.dp))
                 Box(contentAlignment = Alignment.TopEnd) {
                     Box(
@@ -424,14 +427,19 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(cat.name, style = T.hero.copy(fontSize = 40.sp), textAlign = TextAlign.Center, modifier = Modifier.testTag("reveal-name"))
-                    // "Ragdoll / RAGDOLL" says the same thing twice.
-                    if (cat.breed != cat.name) Text(cat.breed.uppercase(), style = T.caps.copy(letterSpacing = 3.sp))
+                    // Every reveal has a subtitle line. "Ragdoll / RAGDOLL" says the same thing twice, so a cat
+                    // named for its breed shows how it was unlocked instead (or its rarity).
+                    Text(
+                        (if (cat.breed != cat.name) cat.breed else cat.hint ?: cat.rarity.line).uppercase(),
+                        style = T.caps.copy(letterSpacing = 3.sp),
+                        textAlign = TextAlign.Center,
+                    )
                     Spacer(Modifier.height(4.dp))
                     Text("“${cat.line}”", style = T.body.copy(color = C.ink, fontStyle = FontStyle.Italic), textAlign = TextAlign.Center)
                     if (!r.isNew) {
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "Duplicate (×$copies): +1 swap. You now have ${s.swaps} swap${if (s.swaps == 1) "" else "s"} — 3${F.NBSP}save a missed${F.NBSP}day.",
+                            "Duplicate (×$copies): +1 swap. ${s.swaps}${F.NBSP}swap${if (s.swaps == 1) "" else "s"} · trade ${Streaks.SWAPS_PER_SAVE} to save a missed${F.NBSP}day.",
                             style = T.small,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.widthIn(max = 420.dp),
@@ -448,8 +456,8 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
                             Text("$owned of ${Catalog.SIZE}", style = T.label, modifier = Modifier.alignByBaseline())
                         }
                         Spacer(Modifier.height(6.dp))
-                        val fill = remember { Animatable(((owned - if (r.isNew) 1 else 0).toFloat() / Catalog.SIZE)) }
-                        LaunchedEffect(owned) { delay(500); fill.animateTo(owned.toFloat() / Catalog.SIZE, tween(900)) }
+                        // Always the label's value: the bar and "N of 24" never disagree, even mid-animation.
+                        val fill = owned.toFloat() / Catalog.SIZE
                         Box(
                             Modifier
                                 .fillMaxWidth()
@@ -459,7 +467,7 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
                         ) {
                             Box(
                                 Modifier
-                                    .fillMaxWidth(fill.value)
+                                    .fillMaxWidth(fill)
                                     .height(6.dp)
                                     .clip(CircleShape)
                                     .background(Brush.horizontalGradient(listOf(C.steps, C.bath, C.weigh, C.swap))),
@@ -544,7 +552,7 @@ private fun HoloGlow(rarity: Rarity, clock: State<Float>) {
 }
 
 @Composable
-private fun Confetti(clock: State<Float>, avoid: () -> Rect) {
+private fun Confetti(clock: State<Float>, avoid: () -> List<Rect>) {
     val bits = remember {
         val r = Random(7)
         List(46) {
@@ -555,14 +563,14 @@ private fun Confetti(clock: State<Float>, avoid: () -> Rect) {
     Canvas(Modifier.fillMaxSize()) {
         val t = clock.value
         // Keep the confetti off the text and buttons: it falls around them, never across them.
-        val area = avoid()
-        val keepOut = if (area.isEmpty) area else area.inflate(10.dp.toPx())
+        val pad = 12.dp.toPx()
+        val keepOut = avoid().filterNot { it.isEmpty }.map { it.inflate(pad) }
         for (b in bits) {
             val life = (t * 0.35f * b[2] + b[1]) % 1.4f
             if (life > 1.2f) continue
             val x = b[0] * size.width + sin((t + b[3]) * 1.5f) * 20f
             val y = -20f + life * size.height
-            if (keepOut.contains(Offset(x, y))) continue
+            if (keepOut.any { it.contains(Offset(x, y)) }) continue
             rotate(b[3] + t * 180f * b[2], Offset(x, y)) {
                 drawRect(colors[b[4].toInt()].copy(alpha = (1.2f - life).coerceIn(0f, 1f)), Offset(x - 5f, y - 3f), androidx.compose.ui.geometry.Size(10f, 6f))
             }

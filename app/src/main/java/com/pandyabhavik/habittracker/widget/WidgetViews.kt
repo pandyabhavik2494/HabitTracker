@@ -175,14 +175,18 @@ private fun barValue(s: HomeState, h: Habit): Float = when {
 
 private fun barColor(s: HomeState, h: Habit): Color = if (h == Habit.CALORIES && calorieOver(s)) C.risk else C.of(h)
 
-/** The value at the end of a habit row: steps left (or the total once closed), kcal, done/open. */
+/**
+ * The value at the end of a habit row: what's left while open, "done" once closed, for every habit alike
+ * (totals live in the app). Calories over the limit say by how much, in red.
+ */
 private fun rowValue(s: HomeState, h: Habit): String = when (h) {
-    Habit.STEPS -> if (h in s.closed) Coach.n(s.today.steps)
+    Habit.STEPS -> if (h in s.closed) "done"
     else "${Coach.n((s.goals.steps - s.today.steps).coerceAtLeast(0))} left"
     Habit.CALORIES -> when (s.calorieState) {
         CalorieState.NOT_LOGGED -> "open"
         CalorieState.UNDER -> "${Coach.n((s.goals.calories - s.today.calories).coerceAtLeast(0))} left"
-        CalorieState.CLOSED, CalorieState.OVER -> "${Coach.n(s.today.calories)} kcal"
+        CalorieState.CLOSED -> "done"
+        CalorieState.OVER -> "${Coach.n((s.today.calories - s.goals.calories).coerceAtLeast(0))} over"
     }
     Habit.WEIGH, Habit.BATH -> if (h in s.closed) "done" else "open"
 }
@@ -257,7 +261,13 @@ private fun SealCenter(s: HomeState, k: Float, numberSp: Float, flame: Boolean, 
         }
         if (flame) {
             Spacer(GlanceModifier.height((3f * k).dp))
-            FlameChip(s, 10.5f * k)
+            // At risk, the countdown alone (no flame icon) in a smaller size, so "2h 42m" sits well inside
+            // the ring's hole instead of touching the arcs.
+            if (s.atRisk) {
+                Text(countdown(s), style = ts(C.risk, 9f * k, FontWeight.Bold, TextAlign.Center), maxLines = 1)
+            } else {
+                FlameChip(s, 10.5f * k)
+            }
         }
     }
 }

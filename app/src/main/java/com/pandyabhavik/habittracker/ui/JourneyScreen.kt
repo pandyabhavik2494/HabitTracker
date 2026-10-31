@@ -179,12 +179,15 @@ private fun MonthCalendar(s: HomeState, month: YearMonth, onPrev: () -> Unit, on
             }
         }
         Spacer(Modifier.height(8.dp))
-        // The same keys as the heatmap's legend, drawn the way the calendar draws each day.
+        // The same keys and styles as the heatmap. Today and No data only when this month shows them.
+        val showsToday = YearMonth.from(today) == month
+        val hasNoData = (1..month.lengthOfMonth()).any { month.atDay(it).let { d -> d.isAfter(today) || d.isBefore(first) } }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Legend(C.bath, "Perfect", brush = Brush.linearGradient(listOf(C.bath, C.weigh)))
+            Legend(C.bath, "Perfect", brush = PerfectBrush)
             Legend(C.swap, "Saved")
-            Legend(Color.Transparent, "Missed", outline = C.risk.copy(alpha = 0.6f))
-            Legend(Color.Transparent, "Today", outline = C.ink)
+            Legend(Color.Transparent, "Missed", outline = MissedOutline)
+            if (showsToday) Legend(Color.Transparent, "Today", outline = C.ink)
+            if (hasNoData) Legend(Color.Transparent, "No data", outline = NoDataCell)
         }
     }
 }
@@ -198,11 +201,11 @@ private fun DayDot(s: HomeState, date: LocalDate, today: LocalDate, first: Local
     val shape = CircleShape
     val base = Modifier.fillMaxSize().clip(shape)
     val mod = when {
-        perfect -> base.background(Brush.linearGradient(listOf(C.bath, C.weigh)))
+        perfect -> base.background(PerfectBrush)
         saved -> base.background(C.swap)
         date == today -> base.border(2.dp, C.ink, shape)
-        missed -> base.border(1.dp, C.risk.copy(alpha = 0.6f), shape)
-        else -> base
+        missed -> base.border(1.dp, MissedOutline, shape)
+        else -> base.border(1.dp, NoDataCell, shape)
     }
     Box(mod.testTag("day-$date"), contentAlignment = Alignment.Center) {
         Text(
@@ -282,24 +285,20 @@ private fun HeatGrid(s: HomeState) {
                     // Future days have no data yet; today, still in progress, is an ink outline, never a miss.
                     val noData = d.isAfter(today) || (d.isBefore(first) && !done && !saved)
                     val inProgress = d == today && !done && !saved
-                    val color = when {
-                        done -> C.ink
-                        saved -> C.swap
-                        noData || inProgress -> Color.Transparent
-                        else -> MissedCell
-                    }
+                    // Drawn exactly as the calendar draws the same day.
                     val cell = RoundedCornerShape(3.dp)
                     Box(
                         Modifier
                             .weight(1f)
                             .aspectRatio(1f)
                             .clip(cell)
-                            .background(color)
                             .then(
                                 when {
+                                    done -> Modifier.background(PerfectBrush)
+                                    saved -> Modifier.background(C.swap)
                                     inProgress -> Modifier.border(1.5.dp, C.ink, cell)
                                     noData -> Modifier.border(1.dp, NoDataCell, cell)
-                                    else -> Modifier
+                                    else -> Modifier.border(1.dp, MissedOutline, cell)
                                 },
                             ),
                     )
@@ -308,17 +307,20 @@ private fun HeatGrid(s: HomeState) {
         }
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Legend(C.ink, "Perfect Day")
+            Legend(C.bath, "Perfect Day", brush = PerfectBrush)
             Legend(C.swap, "Saved with swaps")
-            Legend(MissedCell, "Missed")
+            Legend(Color.Transparent, "Missed", outline = MissedOutline)
             Legend(Color.Transparent, "Today", outline = C.ink)
             Legend(Color.Transparent, "No data", outline = NoDataCell)
         }
     }
 }
 
-private val MissedCell = Color(0xFF2A2F3E)
-private val NoDataCell = Color(0xFF1C1F28)
+/** One style per day state, shared by the calendar and the heatmap. */
+private val PerfectBrush: Brush get() = Brush.linearGradient(listOf(C.bath, C.weigh))
+private val MissedOutline: Color get() = C.risk.copy(alpha = 0.6f)
+/** Faint, but visible on the panel: a day with nothing to show, not a miss. */
+private val NoDataCell = Color(0xFF353A4A)
 
 @Composable
 private fun Legend(color: Color, text: String, outline: Color? = null, brush: Brush? = null) {

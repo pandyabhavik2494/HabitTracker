@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.tappableElement
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -97,8 +100,10 @@ fun AlbumScreen(s: HomeState) {
         // A real album: every cat has a fixed slot, so the gaps show what's still out there.
         val order = Catalog.all.sortedBy { orderOf(it.rarity) }
         order.chunked(columns).forEachIndexed { i, row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                row.forEachIndexed { j, cat -> Slot(cat, s, Modifier.weight(1f), (i * columns + j) * 0.37f) { open = cat.id } }
+            // Every slot in a row is as tall as the row's tallest (two-line unlock hints), so scrolling any
+            // slot into view brings its whole row, never half of a neighbour's hint.
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                row.forEachIndexed { j, cat -> Slot(cat, s, Modifier.weight(1f).fillMaxHeight(), (i * columns + j) * 0.37f) { open = cat.id } }
                 repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
             }
             Spacer(Modifier.height(14.dp))
@@ -112,8 +117,12 @@ fun AlbumScreen(s: HomeState) {
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
-        // Clear of the navigation bar or taskbar and the bottom bar, so the last row is never cut off.
-        val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        // Clear of the navigation bar or taskbar (on both layouts) and the narrow layout's bottom bar, so the
+        // last row is never cut off.
+        val navBottom = maxOf(
+            WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+            WindowInsets.tappableElement.asPaddingValues().calculateBottomPadding(),
+        )
         Spacer(Modifier.height(navBottom + (if (a.wide) 0.dp else BOTTOM_BAR_HEIGHT) + 24.dp))
     }
     open?.let { id -> StickerSheet(Catalog[id], s) { open = null } }

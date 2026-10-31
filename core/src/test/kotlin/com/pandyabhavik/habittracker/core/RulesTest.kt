@@ -181,6 +181,8 @@ class RulesTest {
     @Test fun walkLineKeepsTheNumberWithItsWords() {
         val m = Coach.nextMove(Day(today, steps = 820, weighedAt = 1), goals, at(13), setOf(Habit.WEIGH))
         assertEquals("A 20-minute walk now puts you at 2,820.", m?.title)
+        // "early." never sits alone on the last line.
+        assertEquals("Steps are the quarter that takes longest. Bank them\u00A0early.", m?.detail)
     }
 
     @Test fun nextMovePrefersTheInstantQuarterInTheMorning() {

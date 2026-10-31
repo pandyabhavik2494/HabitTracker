@@ -252,8 +252,8 @@ class ActionsTest {
         app.node("reveal-badge").assertTextEquals("+1 SWAP")
         app.waitFor("the duplicate to count") { sticker(cat.id)?.count == before + 1 }
         assertEquals(TestData.SWAPS + 1, app.settings().swaps)
-        // "You have 4." before the copy change, "You now have 4 swaps" after: match what both share.
-        app.waitText("have ${TestData.SWAPS + 1}", substring = true)
+        // "4 swaps · trade 3 to save a missed day." (non-breaking space inside "4 swaps").
+        app.waitText("${TestData.SWAPS + 1}\u00A0swaps · trade 3", substring = true)
         shot("52-reveal-duplicate-swap")
 
         app.click("reveal-done")
@@ -324,7 +324,7 @@ class ActionsTest {
         app.assertTagText("kitchen-lock-value", "8:15 PM")
         shot("56-settings-goals-changed")
 
-        app.click("settings-back")
+        app.click(if (app.wide) "tab-today" else "settings-back")
         app.waitTag("today")
         // Today follows the new goals.
         app.waitText("1,550", substring = true)
@@ -345,7 +345,7 @@ class ActionsTest {
         app.openSettings()
         app.click("unit-kg")
         app.waitFor("kilos to be saved") { !app.settings().pounds }
-        app.click("settings-back")
+        app.click(if (app.wide) "tab-today" else "settings-back")
         app.waitTag("today")
         app.waitText(" kg", substring = true)
         assertFalse(app.exists(app.hasShownText(" lb", substring = true)))
@@ -399,7 +399,7 @@ class ActionsTest {
 
         app.openSettings()
         app.scrollTo("n-warn").assertIsOn()
-        app.assertText("5 PM heads-up on Wednesdays")
+        app.assertText("Wednesday heads-up · 5 PM")
         shot("61-settings-warn-toggle")
     }
 
@@ -423,7 +423,7 @@ class ActionsTest {
         app.waitGone("album")
 
         app.openSettings()
-        app.click("settings-back")
+        app.click(if (app.wide) "tab-today" else "settings-back")
         app.waitTag("today")
         app.waitGone("settings")
 

@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material3.Icon
@@ -90,8 +91,11 @@ private fun Welcome(screenHeight: androidx.compose.ui.unit.Dp, next: () -> Unit)
     // Short screens (the cover display) shrink the ring and the gaps so "Get started" fits without scrolling.
     val compact = screenHeight < 760.dp
     val ring = minOf(220.dp, screenHeight * 0.26f)
-    var demo by rememberSaveable { mutableIntStateOf(0) }
+    // Opens on the full, sealed ring (the goal), then shows it filling quarter by quarter.
+    var demo by rememberSaveable { mutableIntStateOf(4) }
     LaunchedEffect(Unit) {
+        delay(1500)
+        demo = 0
         while (true) {
             delay(900)
             demo = (demo + 1) % 6
@@ -100,7 +104,11 @@ private fun Welcome(screenHeight: androidx.compose.ui.unit.Dp, next: () -> Unit)
     val prog = Habit.entries.mapIndexed { i, h -> h to if (i < demo) 1f else 0f }.toMap()
     Spacer(Modifier.height(if (compact) 0.dp else 24.dp))
     Seal(prog, ring) {
-        Text(if (demo >= 4) "✓" else "${demo.coerceAtMost(4)}/4", style = T.hero.copy(fontSize = if (compact) 40.sp else 48.sp))
+        if (demo >= 4) {
+            Icon(Icons.Rounded.Check, contentDescription = "Sealed", tint = C.ink, modifier = Modifier.size(if (compact) 48.dp else 56.dp))
+        } else {
+            Text("$demo/4", style = T.hero.copy(fontSize = if (compact) 40.sp else 48.sp))
+        }
     }
     Spacer(Modifier.height(if (compact) 14.dp else 24.dp))
     Text("Close all four.\nEvery day.", style = T.hero.copy(fontSize = if (compact) 32.sp else 40.sp), textAlign = TextAlign.Center)

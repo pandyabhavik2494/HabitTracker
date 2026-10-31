@@ -10,8 +10,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,8 +25,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.tappableElement
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -171,27 +179,57 @@ private val PullDisc = Color(0xFF2A3040)
 
 @Composable
 private fun TodayCover(s: HomeState, onHabit: (Habit) -> Unit) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
-    ) {
-        TopBar(s, showSettings = true)
-        Box(
+    val scroll = rememberScrollState()
+    Box(Modifier.fillMaxSize()) {
+        Column(
             Modifier
-                .fillMaxWidth()
-                .padding(vertical = 6.dp),
-            contentAlignment = Alignment.Center,
+                .fillMaxSize()
+                .verticalScroll(scroll)
+                .padding(horizontal = 16.dp),
         ) {
-            BigSeal(s, 236.dp)
+            TopBar(s, showSettings = true)
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    // Room below for the Seal's glow (10% of its size past the ring's box), so the card
+                    // underneath never cuts it flat.
+                    .padding(top = 6.dp, bottom = 26.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                BigSeal(s, 236.dp)
+            }
+            Cards(s, Modifier.fillMaxWidth())
+            Spacer(Modifier.height(10.dp))
+            HabitRows(s, onHabit)
+            SyncLine(s)
+            Spacer(Modifier.height(bottomRoom()))
         }
-        Cards(s, Modifier.fillMaxWidth())
-        Spacer(Modifier.height(10.dp))
-        HabitRows(s, onHabit)
-        SyncLine(s)
-        Spacer(Modifier.height(24.dp))
+        StatusScrim(scroll)
     }
+}
+
+/** Space below the end of a scroll: clear of the navigation bar or taskbar, plus 24dp. */
+@Composable
+private fun bottomRoom(): Dp = maxOf(
+    WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+    WindowInsets.tappableElement.asPaddingValues().calculateBottomPadding(),
+) + 24.dp
+
+/**
+ * Fades the top of the scrolling Today into the background once it has scrolled, so the streak pills
+ * slide away softly instead of being cut by the top edge.
+ */
+@Composable
+private fun BoxScope.StatusScrim(scroll: ScrollState) {
+    val h = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 12.dp
+    Box(
+        Modifier
+            .align(Alignment.TopCenter)
+            .fillMaxWidth()
+            .height(h)
+            .graphicsLayer { alpha = (scroll.value / 24.dp.toPx()).coerceIn(0f, 1f) }
+            .background(Brush.verticalGradient(listOf(C.bg, C.bg.copy(alpha = 0f)))),
+    )
 }
 
 // ---- Inner screen ---------------------------------------------------------------------------------
@@ -228,9 +266,10 @@ private fun TodayWide(s: HomeState, onHabit: (Habit) -> Unit) {
                 ) {
                     Spacer(Modifier.height(seal * 0.1f))
                     BigSeal(s, seal)
-                    Spacer(Modifier.height(seal * 0.06f))
+                    // The glow reaches 10% of the Seal's size below its box: keep the card clear of it.
+                    Spacer(Modifier.height(seal * 0.12f))
                     Cards(s, Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.height(bottomRoom()))
                 }
             }
             Column(
@@ -241,17 +280,18 @@ private fun TodayWide(s: HomeState, onHabit: (Habit) -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Spacer(Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StepsTile(s, Modifier.weight(1f)) { onHabit(Habit.STEPS) }
-                    CaloriesTile(s, Modifier.weight(1f)) { onHabit(Habit.CALORIES) }
+                // Tiles in a row share one height (the taller one's), so the rows stay aligned.
+                Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    StepsTile(s, Modifier.weight(1f).fillMaxHeight()) { onHabit(Habit.STEPS) }
+                    CaloriesTile(s, Modifier.weight(1f).fillMaxHeight()) { onHabit(Habit.CALORIES) }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    WeighTile(s, Modifier.weight(1f)) { onHabit(Habit.WEIGH) }
-                    BathTile(s, Modifier.weight(1f)) { onHabit(Habit.BATH) }
+                Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    WeighTile(s, Modifier.weight(1f).fillMaxHeight()) { onHabit(Habit.WEIGH) }
+                    BathTile(s, Modifier.weight(1f).fillMaxHeight()) { onHabit(Habit.BATH) }
                 }
                 WeekStrip(s)
                 SyncLine(s)
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(bottomRoom() - 12.dp))
             }
         }
     }
@@ -351,12 +391,6 @@ private fun sealCaption(s: HomeState, open: List<Habit>): String {
     }
 }
 
-/** Joins the last two words with a no-break space, so a short last word never sits alone on a line. */
-private fun String.keepLastWord(): String {
-    val i = lastIndexOf(' ')
-    return if (i <= 0 || length - i > 12) this else substring(0, i) + F.NBSP + substring(i + 1)
-}
-
 /** The context cards: the pack, comeback, saved streak, risk, pledge, a pattern, the best next move. */
 @Composable
 fun Cards(s: HomeState, modifier: Modifier) {
@@ -379,10 +413,10 @@ fun Cards(s: HomeState, modifier: Modifier) {
             Panel(Modifier.fillMaxWidth().testTag("next-move")) {
                 Caps("Best next move", icon = Icons.Rounded.Bolt)
                 Spacer(Modifier.height(6.dp))
-                Text(move.title.keepLastWord(), style = T.h2)
+                Text(move.title.keepLast(), style = T.h2)
                 move.detail?.let {
                     Spacer(Modifier.height(4.dp))
-                    Text(it, style = T.body)
+                    Text(it.keepLast(), style = T.body)
                 }
             }
         }
@@ -390,7 +424,7 @@ fun Cards(s: HomeState, modifier: Modifier) {
             Panel(Modifier.fillMaxWidth().clickable { a.askHealth() }.testTag("connect-health"), borderColor = C.bath.copy(alpha = 0.4f)) {
                 Caps("Connect Health Connect", color = C.bath, icon = Icons.Rounded.Sync)
                 Spacer(Modifier.height(6.dp))
-                Text("Steps, food and weight sync from Health Connect. Tap to allow access.", style = T.body)
+                Text("Steps, food and weight sync from Health Connect. Tap to allow access.".keepLast(), style = T.body)
             }
         }
     }
@@ -442,8 +476,8 @@ private fun PerfectCard(s: HomeState) {
             Column(Modifier.weight(1f)) {
                 Caps("Perfect Day #${s.dayNumber}", color = C.weigh, icon = Icons.Rounded.EmojiEvents)
                 Spacer(Modifier.height(4.dp))
-                Text("All four closed. ${s.streak}-day streak.", style = T.h2)
-                Text("Come back tomorrow for #${s.dayNumber + 1}. The Seal stays lit tonight.", style = T.body)
+                Text("All four closed. ${s.streak}-day streak.".keepLast(), style = T.h2)
+                Text("Come back tomorrow for #${s.dayNumber + 1}. The Seal stays lit tonight.".keepLast(), style = T.body)
             }
         }
     }
@@ -475,8 +509,8 @@ private fun RiskCard(s: HomeState) {
                 .testTag("countdown"),
         )
         Spacer(Modifier.height(4.dp))
-        Text((s.move?.title ?: "${open.size} quarters still open.").keepLastWord(), style = T.h2)
-        Text("Close it for Perfect Day #${s.dayNumber} and a sticker pack.", style = T.body)
+        Text((s.move?.title ?: "${open.size} quarters still open.").keepLast(), style = T.h2)
+        Text("Close it for Perfect Day #${s.dayNumber} and a sticker pack.".keepLast(), style = T.body)
         // The gap above the button only when there is one, so the card's top and bottom padding match.
         when (open.firstOrNull()) {
             Habit.BATH -> if (open.size == 1) {
@@ -534,7 +568,7 @@ private fun PledgeCard(s: HomeState) {
         Text("“I close all four today.”", style = T.title)
         Spacer(Modifier.height(4.dp))
         Text(
-            if (s.pledgesKept > 0) "You've kept ${s.pledgesKept} pledge${if (s.pledgesKept == 1) "" else "s"} in a row." else "Say it with your thumb. It makes it far more likely.",
+            (if (s.pledgesKept > 0) "You've kept ${s.pledgesKept} pledge${if (s.pledgesKept == 1) "" else "s"} in a row." else "Say it with your thumb. It makes it far more likely.").keepLast(),
             style = T.body,
         )
         Spacer(Modifier.height(10.dp))
@@ -577,7 +611,7 @@ private fun ComebackCard(s: HomeState) {
         Caps("Fresh start", color = C.risk, icon = Icons.Rounded.History)
         Spacer(Modifier.height(6.dp))
         Text("Comeback: 3 Perfect Days in a row", style = T.h2)
-        Text("Pull it off and Maneki the Lucky Cat is yours, guaranteed. Comebacks are the only way to get her.", style = T.body)
+        Text("Pull it off and Maneki the Lucky Cat is yours, guaranteed. Comebacks are the only way to get her.".keepLast(), style = T.body)
         Spacer(Modifier.height(10.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CatSticker("maneki", 56.dp, silhouette = "maneki" !in s.owned)
@@ -596,7 +630,7 @@ private fun ComebackCard(s: HomeState) {
         }
         if (s.comebackRecord > 0) {
             Spacer(Modifier.height(10.dp))
-            Text("Your record: ${s.comebackRecord} days. You've done it before.", style = T.small.copy(color = C.ink))
+            Text("Your record: ${s.comebackRecord} days. You've done it before.".keepLast(), style = T.small.copy(color = C.ink))
         }
     }
 }
@@ -616,7 +650,7 @@ private fun SavedCard(s: HomeState) {
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            "${s.swaps} swap${if (s.swaps == 1) "" else "s"} left. Every duplicate you pull adds one.",
+            "${s.swaps} swap${if (s.swaps == 1) "" else "s"} left. Every duplicate you pull adds one.".keepLast(),
             style = T.body,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
@@ -639,7 +673,7 @@ private fun PatternCard(s: HomeState, habit: Habit, day: DayOfWeek, misses: Int,
         Spacer(Modifier.height(6.dp))
         Text("${name}s are your $what trap.", style = T.h2)
         val count = if (misses >= of) "All" else "$misses"
-        Text("$count of your last $of ${name}s missed it. Want a 5${F.NBSP}PM heads-up on ${name}s?", style = T.body)
+        Text("$count of your last $of ${name}s missed it. Want a 5${F.NBSP}PM heads-up on ${name}s?".keepLast(), style = T.body)
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(
@@ -690,14 +724,14 @@ private fun HabitRows(s: HomeState, onHabit: (Habit) -> Unit) {
             when (h) {
                 Habit.STEPS -> HabitRow(
                     h, F.habitName(h, s),
-                    if (closed) "Closed · ${F.n(d.steps)} steps" else "${F.n(s.goals.steps - d.steps)} to go · about ${Rules.walkMinutes(s.goals.steps - d.steps)} min of walking",
+                    if (closed) "Closed · ${F.n(d.steps)} steps" else "${F.n(s.goals.steps - d.steps)} to go · ≈${Rules.walkMinutes(s.goals.steps - d.steps)} min walk".keepLast(),
                     F.n(d.steps), d.steps.toFloat() / s.goals.steps, closed,
                     onClick = { onHabit(h) },
                 )
                 Habit.CALORIES -> HabitRow(
                     h, F.habitName(h, s),
                     when (s.calorieState) {
-                        CalorieState.NOT_LOGGED -> "Nothing logged yet · ${F.n(s.goals.calories)} kcal budget"
+                        CalorieState.NOT_LOGGED -> "Nothing logged · 0 of ${F.n(s.goals.calories)} kcal".keepLast()
                         CalorieState.UNDER -> "${F.n(s.goals.calories - d.calories)} kcal left · kitchen locks ${F.minutesOfDay(s.goals.kitchenLockMinute)}"
                         CalorieState.CLOSED -> "Kitchen closed · ${F.n(d.calories)} kcal sealed"
                         CalorieState.OVER -> "${F.n(d.calories - s.goals.calories)} kcal over today"
@@ -709,7 +743,7 @@ private fun HabitRows(s: HomeState, onHabit: (Habit) -> Unit) {
                 Habit.WEIGH -> HabitRow(
                     h, "Weigh-in",
                     d.weightKg?.let { kg -> listOfNotNull(F.weight(kg, s.settings.pounds), F.weightTrend(s, kg)).joinToString(" · ") }
-                        ?: "Waiting for your scale",
+                        ?: "Waiting for your scale".keepLast(),
                     if (closed) null else "Now", 0f, closed,
                     valueColor = C.weigh,
                     trailing = if (closed) null else ({ Text("Now", style = T.label.copy(color = C.weigh)) }),
@@ -717,7 +751,7 @@ private fun HabitRows(s: HomeState, onHabit: (Habit) -> Unit) {
                 )
                 Habit.BATH -> HabitRow(
                     h, "Bath",
-                    d.bathAt?.let { "Logged ${F.time(it, s.zone)}" } ?: "Long-press to log",
+                    d.bathAt?.let { "Logged ${F.time(it, s.zone)}" } ?: "Long-press to log".keepLast(),
                     null, 0f, closed,
                     trailing = if (closed) null else ({ Icon(Icons.Rounded.TouchApp, null, tint = C.bath) }),
                     modifier = Modifier.semantics { onLongClick("Log bath") { logBath(a, s, view); true } },
@@ -761,8 +795,9 @@ fun SyncLine(s: HomeState) {
         Text(
             when {
                 syncing -> "Syncing with Health Connect…"
-                error != null -> error
-                else -> "${F.ago(s.settings.lastSync, now)} · pull down to sync"
+                // "Sync failed: no Health Connect access": short, with the last two words kept together.
+                error != null -> error.removePrefix("Last ").replaceFirstChar { it.uppercase() }.keepLast()
+                else -> "${F.ago(s.settings.lastSync, now)} · pull down to sync".keepLast()
             },
             style = T.small.copy(color = if (error != null) C.risk else C.dim),
             modifier = Modifier.weight(1f, fill = false),
@@ -835,11 +870,25 @@ private fun BigValue(value: String, unit: String, color: Color = C.ink) {
     )
 }
 
+/** One grey line under a tile's big value: what an empty value means, or when the value is from. */
+@Composable
+private fun ValueHint(text: String, modifier: Modifier = Modifier) {
+    Text(text, style = T.small, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier)
+}
+
+/** Every tile's empty state looks the same: a dim "—" where the value goes, and a one-line hint. */
+@Composable
+private fun EmptyValue(unit: String, hint: String) {
+    BigValue("—", unit, color = C.dim)
+    ValueHint(hint)
+}
+
 @Composable
 private fun StepsTile(s: HomeState, modifier: Modifier, onClick: () -> Unit) {
     val d = s.today
     Tile(Habit.STEPS, "Steps", s, modifier, onClick) {
-        BigValue(F.n(d.steps), "/ ${F.compact(s.goals.steps)}")
+        if (d.steps > 0) BigValue(F.n(d.steps), "/ ${F.compact(s.goals.steps)}")
+        else EmptyValue("/ ${F.compact(s.goals.steps)}", "No steps synced yet.")
         Spacer(Modifier.height(8.dp))
         HourBars(d.hourly, s.now.hour, Modifier.fillMaxWidth().height(56.dp))
         Spacer(Modifier.height(8.dp))
@@ -882,10 +931,14 @@ private fun CaloriesTile(s: HomeState, modifier: Modifier, onClick: () -> Unit) 
         Habit.CALORIES, "Calories", s, modifier, onClick,
         badge = if (locked && Habit.CALORIES !in s.closed) ({ Icon(Icons.Rounded.Lock, null, tint = C.calories) }) else null,
     ) {
-        BigValue(F.n(d.calories), "/ ${F.n(s.goals.calories)}")
-        Spacer(Modifier.height(8.dp))
         val meals = F.mealLine(d)
-        if (meals.isEmpty()) Text(if (d.meals == 0) "Nothing logged in MyFitnessPal yet." else "${d.meals} entries logged.", style = T.small)
+        if (d.calories == 0 && d.meals == 0) {
+            EmptyValue("/ ${F.n(s.goals.calories)}", "Nothing logged yet.")
+        } else {
+            BigValue(F.n(d.calories), "/ ${F.n(s.goals.calories)}")
+        }
+        Spacer(Modifier.height(8.dp))
+        if (meals.isEmpty() && d.meals > 0) Text("${d.meals} entries logged.", style = T.small)
         meals.forEach { (name, kcal) ->
             Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
                 Text(name, style = T.small.copy(color = C.ink), modifier = Modifier.weight(1f))
@@ -921,14 +974,13 @@ private fun WeighTile(s: HomeState, modifier: Modifier, onClick: () -> Unit) {
             val v = String.format(Locale.US, "%.1f", F.weightValue(latest, s.settings.pounds))
             BigValue(v, F.unit(s.settings.pounds), color = if (d.weightKg != null) C.ink else C.dim)
             if (d.weightKg == null && last != null) {
-                Text(
+                ValueHint(
                     "Last: ${F.dayLabel(last.key, todayDate).let { if (it == "Yesterday") "yesterday" else it }}",
-                    style = T.small,
                     modifier = Modifier.testTag("weigh-last"),
                 )
             }
         } else {
-            Text("Step on the scale", style = T.h2)
+            EmptyValue(F.unit(s.settings.pounds), "Step on the scale.")
         }
         Spacer(Modifier.height(8.dp))
         if (history.size >= 2) Sparkline(history.map { F.weightValue(it, s.settings.pounds).toFloat() }, Modifier.fillMaxWidth().height(56.dp))
@@ -987,9 +1039,9 @@ private fun BathTile(s: HomeState, modifier: Modifier, onClick: () -> Unit) {
             val parts = F.time(d.bathAt!!, s.zone).split(F.NBSP)
             BigValue(parts[0], parts.getOrElse(1) { "" })
         } else {
-            Text("Not yet", style = T.big.copy(fontSize = 28.sp, color = C.dim))
+            EmptyValue("", "Not yet today.")
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
         val run = bathRun(s)
         val usual = usualBath(s)
         Text(

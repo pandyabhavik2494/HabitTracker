@@ -27,10 +27,12 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -39,6 +41,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pandyabhavik.habittracker.BuildConfig
@@ -58,6 +61,10 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
     val syncing by vm.syncing.collectAsStateWithLifecycle()
     val context = LocalContext.current
     LaunchedEffect(Unit) { vm.refreshGranted() }
+    // On wide screens Settings is a rail destination like the others: same side margins, no back arrow.
+    val wide = a.wide
+    val side = if (wide) 20.dp else 16.dp
+    val maxWidth = if (wide) Dp.Unspecified else 720.dp
     Column(
         Modifier
             .fillMaxSize()
@@ -67,17 +74,20 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
         // Stays put while the panels scroll underneath.
         Row(
             Modifier
-                .widthIn(max = 720.dp)
+                .widthIn(max = maxWidth)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(top = 12.dp, bottom = 8.dp),
+                .padding(horizontal = side)
+                .padding(top = 12.dp, bottom = 8.dp)
+                .height(40.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                Modifier.size(40.dp).clip(CircleShape).clickable { onBack() }.testTag("settings-back"),
-                contentAlignment = Alignment.Center,
-            ) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back", tint = C.ink) }
-            Spacer(Modifier.width(6.dp))
+            if (!wide) {
+                Box(
+                    Modifier.size(40.dp).clip(CircleShape).clickable { onBack() }.testTag("settings-back"),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back", tint = C.ink) }
+                Spacer(Modifier.width(6.dp))
+            }
             Text("Settings", style = T.title)
         }
         Column(
@@ -90,9 +100,9 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
         ) {
         Column(
             Modifier
-                .widthIn(max = 720.dp)
+                .widthIn(max = maxWidth)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = side),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Panel(Modifier.fillMaxWidth()) {
@@ -116,17 +126,17 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
             Panel(Modifier.fillMaxWidth()) {
                 Caps("Notifications")
                 Text("Each one is skipped once the day is closed.", style = T.small)
-                Toggle("Morning pledge · 7:00 AM", st.notifyPledge, "n-pledge") { v -> vm.updateSettings { it.copy(notifyPledge = v) } }
-                Toggle("Midday pace, only if behind · 12:30 PM", st.notifyMidday, "n-midday") { v -> vm.updateSettings { it.copy(notifyMidday = v) } }
-                Toggle("At risk · 9:00 PM", st.notifyRisk, "n-risk") { v -> vm.updateSettings { it.copy(notifyRisk = v) } }
-                Toggle("Last call · 11:00 PM", st.notifyLastCall, "n-last") { v -> vm.updateSettings { it.copy(notifyLastCall = v) } }
-                Toggle("Show today's progress in the status bar", st.ongoing, "n-ongoing") { v ->
+                Toggle("Morning pledge · 7:00${F.NBSP}AM", st.notifyPledge, "n-pledge") { v -> vm.updateSettings { it.copy(notifyPledge = v) } }
+                Toggle("Midday pace if behind · 12:30${F.NBSP}PM", st.notifyMidday, "n-midday") { v -> vm.updateSettings { it.copy(notifyMidday = v) } }
+                Toggle("At risk · 9:00${F.NBSP}PM", st.notifyRisk, "n-risk") { v -> vm.updateSettings { it.copy(notifyRisk = v) } }
+                Toggle("Last call · 11:00${F.NBSP}PM", st.notifyLastCall, "n-last") { v -> vm.updateSettings { it.copy(notifyLastCall = v) } }
+                Toggle("Show progress in status bar", st.ongoing, "n-ongoing") { v ->
                     if (v) a.askNotifications()
                     vm.updateSettings { it.copy(ongoing = v) }
                 }
                 val wd = st.warnDay
                 if (wd != null) {
-                    Toggle("5 PM heads-up on ${wd.getDisplayName(TextStyle.FULL, Locale.US)}s", true, "n-warn") { v ->
+                    Toggle("${wd.getDisplayName(TextStyle.FULL, Locale.US)} heads-up · 5${F.NBSP}PM", true, "n-warn") { v ->
                         if (!v) vm.updateSettings { it.copy(warnDay = null, warnHabit = null) }
                     }
                 }
@@ -137,6 +147,7 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
             }
             Panel(Modifier.fillMaxWidth()) {
                 Caps("Feel")
+                Spacer(Modifier.height(4.dp))
                 Toggle("Haptics on closes and pack rips", st.haptics, "haptics") { v -> vm.updateSettings { it.copy(haptics = v) } }
             }
             Panel(Modifier.fillMaxWidth().testTag("health-panel")) {
@@ -225,25 +236,28 @@ private fun Toggle(label: String, on: Boolean, tag: String, onChange: (Boolean) 
         Modifier
             .fillMaxWidth()
             .clickable { onChange(!on) }
-            .padding(vertical = 6.dp),
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, style = T.body.copy(color = C.ink), modifier = Modifier.weight(1f).padding(end = 16.dp))
-        Switch(
-            checked = on,
-            onCheckedChange = onChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = C.bath,
-                checkedBorderColor = C.bath,
-                checkedIconColor = C.bath,
-                uncheckedThumbColor = Color(0xFFB8BDCB),
-                uncheckedTrackColor = C.s3,
-                uncheckedBorderColor = Color(0xFF8D93A6),
-                uncheckedIconColor = C.s3,
-            ),
-            modifier = Modifier.testTag(tag),
-        )
+        // The whole row is the touch target, so the switch needn't pad itself out to 48dp.
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            Switch(
+                checked = on,
+                onCheckedChange = onChange,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = C.bath,
+                    checkedBorderColor = C.bath,
+                    checkedIconColor = C.bath,
+                    uncheckedThumbColor = Color(0xFFB8BDCB),
+                    uncheckedTrackColor = C.s3,
+                    uncheckedBorderColor = Color(0xFF8D93A6),
+                    uncheckedIconColor = C.s3,
+                ),
+                modifier = Modifier.testTag(tag),
+            )
+        }
     }
 }
 
