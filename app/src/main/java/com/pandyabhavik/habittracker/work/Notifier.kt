@@ -66,6 +66,8 @@ object Notifier {
     /** What a nudge at [slot] says, or null when it should stay quiet. Public for tests. */
     fun nudgeText(slot: Slot, s: HomeState): Pair<String, String>? {
         if (s.perfect) return null
+        // Over the calorie limit, today can't close: no evening pushes that pretend it still can.
+        if (s.calorieState == CalorieState.OVER && slot in setOf(Slot.WARN, Slot.RISK, Slot.LAST_CALL)) return null
         val open = Habit.entries.filter { it !in s.closed }
         val n = Coach::n
         return when (slot) {
@@ -135,7 +137,7 @@ object Notifier {
         if (Habit.BATH !in s.closed && slot in setOf(Slot.RISK, Slot.LAST_CALL)) {
             b.addAction(0, "Log bath", action(context, ActionReceiver.ACTION_BATH))
         }
-        if (s.calorieState == CalorieState.UNDER && slot in setOf(Slot.RISK, Slot.LAST_CALL)) {
+        if (s.calorieState == CalorieState.UNDER && slot == Slot.WARN) {
             b.addAction(0, "Close kitchen", action(context, ActionReceiver.ACTION_KITCHEN))
         }
         NotificationManagerCompat.from(context).notify(NUDGE_ID, b.build())

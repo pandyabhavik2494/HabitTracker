@@ -46,7 +46,9 @@ import com.pandyabhavik.habittracker.ui.HoldButton
 import com.pandyabhavik.habittracker.ui.T
 import com.pandyabhavik.habittracker.work.Notifier
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Opened from the Bath widget. Widgets can't detect a long press, so the press-and-hold happens here:
@@ -82,14 +84,15 @@ class BathHoldActivity : ComponentActivity() {
         busy = true
         val app = applicationContext
         lifecycleScope.launch {
-            try {
-                val events = Graph.repo(app).logBath()
-                // The app isn't on screen to celebrate, so a Perfect Day gets its notification.
-                Notifier.announce(app, events, force = true)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "Couldn't log the bath", e)
+            // Finish the write even if the sheet is closed, backed out of, or the phone folds mid-way.
+            withContext(NonCancellable) {
+                try {
+                    val events = Graph.repo(app).logBath()
+                    // The app isn't on screen to celebrate, so a Perfect Day gets its notification.
+                    Notifier.announce(app, events, force = true)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Couldn't log the bath", e)
+                }
             }
             finish()
         }

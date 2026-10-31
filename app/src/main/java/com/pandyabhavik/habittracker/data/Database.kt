@@ -135,6 +135,10 @@ interface HabitDao {
     @Query("DELETE FROM packs WHERE date = :date AND openedAt IS NULL")
     suspend fun deleteUnopenedPacks(date: String)
 
+    /** Only the packs a Perfect Day itself earns; secret and comeback packs stay once earned. */
+    @Query("DELETE FROM packs WHERE date = :date AND openedAt IS NULL AND reason IN ('daily', 'milestone')")
+    suspend fun deleteUnopenedDayPacks(date: String)
+
     @Query("DELETE FROM days")
     suspend fun clearDays()
 

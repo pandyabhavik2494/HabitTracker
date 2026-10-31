@@ -147,7 +147,17 @@ private fun FlameChip(s: HomeState, textSp: Float) {
     }
 }
 
-internal fun countdown(s: HomeState): String = Coach.clock(Coach.untilMidnight(s.now))
+/**
+ * Widgets redraw every 15 minutes at best, so a ticking h:mm:ss would look precise and be wrong.
+ * Hours and minutes, rounded up, stay honest between redraws.
+ */
+internal fun countdown(s: HomeState): String {
+    val left = Coach.untilMidnight(s.now, s.zone)
+    val minutes = ((left.seconds + 59) / 60).coerceAtLeast(0)
+    val h = minutes / 60
+    val m = minutes % 60
+    return if (h > 0) "${h}h ${m}m" else "${m}m"
+}
 
 private fun calorieOver(s: HomeState) = s.calorieState == CalorieState.OVER
 
@@ -520,8 +530,8 @@ internal fun LargeView(context: Context, s: HomeState) {
  */
 internal object Art {
     /** About 2.5 px per dp: sharp on the Fold's ~2.6x screens. */
-    private const val PX_PER_DP = 2.5f
-    private const val SEAL_MAX = 320
+    private const val PX_PER_DP = 2f
+    private const val SEAL_MAX = 240
 
     private val cache = object : LinkedHashMap<String, Bitmap>(32, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Bitmap>?): Boolean = size > 32
@@ -560,7 +570,7 @@ internal object Art {
 
     /** A habit ring: a faint track and an arc to [value], glowing when [glowAt] is reached. */
     fun ring(color: Color, value: Float, dp: Float, glowAt: Float = 1f): Bitmap {
-        val px = bucket(dp, 16, 64, 176)
+        val px = bucket(dp, 16, 64, 128)
         val key = "ring:$px:${argb(color)}:${q(value)}:${q(glowAt)}"
         return cached(key) {
             val bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
@@ -589,7 +599,7 @@ internal object Art {
 
     /** A closed habit in the strip: a full glowing ring around a tinted disc. */
     fun doneRing(color: Color, dp: Float): Bitmap {
-        val px = bucket(dp, 16, 64, 176)
+        val px = bucket(dp, 16, 64, 128)
         val key = "done:$px:${argb(color)}"
         return cached(key) {
             val bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)

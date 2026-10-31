@@ -2,6 +2,7 @@ package com.pandyabhavik.habittracker.core
 
 import java.time.Duration
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.LocalTime
 import java.util.Locale
 
@@ -15,8 +16,9 @@ object Coach {
     fun atRisk(closed: Set<Habit>, streak: Int, now: LocalDateTime): Boolean =
         closed.size < 4 && streak > 0 && !now.toLocalTime().isBefore(RISK_FROM)
 
-    fun untilMidnight(now: LocalDateTime): Duration =
-        Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay())
+    /** Real time left today, so the countdown is right on the days the clocks change. */
+    fun untilMidnight(now: LocalDateTime, zone: ZoneId = ZoneId.systemDefault()): Duration =
+        Duration.between(now.atZone(zone), now.toLocalDate().plusDays(1).atStartOfDay(zone))
 
     fun clock(d: Duration): String {
         val s = d.seconds.coerceAtLeast(0)

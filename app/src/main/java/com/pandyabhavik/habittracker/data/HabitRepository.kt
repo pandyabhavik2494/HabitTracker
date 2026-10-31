@@ -97,6 +97,10 @@ class HabitRepository(
                 val old = dao.day(d.toString())?.toDay() ?: Day(d)
                 val hasData = (h.steps ?: 0) > 0 || (h.meals ?: 0) > 0 || h.weightKg != null
                 if (old != Day(d) || hasData || d == today) {
+                    val oldAt = old.weighedAt
+                    val newAt = h.weighedAt
+                    val useScale = h.weightKg != null &&
+                        (!old.weightManual || oldAt == null || (newAt != null && newAt >= oldAt))
                     val merged = old.copy(
                         steps = h.steps ?: old.steps,
                         hourly = h.hourly ?: old.hourly,
@@ -106,10 +110,10 @@ class HabitRepository(
                         lunch = if (h.meals != null) h.lunch else old.lunch,
                         dinner = if (h.meals != null) h.dinner else old.dinner,
                         snacks = if (h.meals != null) h.snacks else old.snacks,
-                        // The scale wins over a typed-in weight; a typed-in weight stays when the scale has none.
-                        weightKg = h.weightKg ?: old.weightKg,
-                        weighedAt = h.weighedAt ?: old.weighedAt,
-                        weightManual = if (h.weightKg != null) false else old.weightManual,
+                        // The newer reading wins: a typed-in correction stays until the scale logs a later one.
+                        weightKg = if (useScale) h.weightKg else old.weightKg,
+                        weighedAt = if (useScale) h.weighedAt else old.weighedAt,
+                        weightManual = if (useScale) false else old.weightManual,
                     )
                     dao.upsertDay(merged.toEntity())
                 }
@@ -146,6 +150,16 @@ class HabitRepository(
             val day = days[date] ?: continue
             if (day.perfectAt != null || !Rules.perfect(day, goals, now)) continue
             val at = nowMillis()
+            if (day.savedWithSwaps) {
+                // Late data completed a day that swaps had saved: give the swaps back.
+                settings.update { it.copy(swaps = it.swaps + Streaks.SWAPS_PER_SAVE) }
+                s = settings.current()
+            }
+            if (s.comebackFrom == date.plusDays(1)) {
+                // Late data completed the day that broke the streak: there is nothing to come back from.
+                settings.update { it.copy(comebackFrom = null) }
+                s = settings.current()
+            }
             val done = day.copy(perfectAt = at, savedWithSwaps = false)
             days[date] = done
             dao.upsertDay(done.toEntity())
@@ -178,9 +192,8 @@ class HabitRepository(
             }
         }
 
-        // 2. Settle finished days. Yesterday waits for a sync after midnight (or 4 AM) so late data counts.
-        val startOfToday = today.atStartOfDay(zone()).toInstant().toEpochMilli()
-        val canSettleYesterday = (s.lastSync ?: 0) >= startOfToday || now.hour >= 4
+        // 2. Settle finished days. Yesterday waits until 4 AM so a watch's late steps still count.
+        val canSettleYesterday = now.hour >= 4
         val settleTo = if (canSettleYesterday) today else today.minusDays(1)
         val from = s.settledUntil ?: s.firstDay ?: today
         if (from.isBefore(settleTo)) {
@@ -234,7 +247,7 @@ class HabitRepository(
             val old = dao.day(today.toString())?.toDay() ?: return
             val opened = dao.packs().any { it.date == today.toString() && it.openedAt != null }
             if (old.perfectAt != null && opened) return
-            if (old.perfectAt != null) dao.deleteUnopenedPacks(today.toString())
+            if (old.perfectAt != null) dao.deleteUnopenedDayPacks(today.toString())
             dao.upsertDay(change(old).copy(perfectAt = null).toEntity())
         }
     }

@@ -72,6 +72,29 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 }
 
+/**
+ * Redraws the widgets at the moments the day changes shape without new data: midnight (a fresh day),
+ * 8 PM (the at-risk countdown starts) and 8:31 PM (the kitchen locks). Each run books the next.
+ */
+class TickWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        try {
+            Graph.repo(applicationContext).evaluate()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w("TickWorker", "Tick failed", e)
+        }
+        Schedules.scheduleTick(applicationContext, ExistingWorkPolicy.APPEND_OR_REPLACE)
+        return Result.success()
+    }
+
+    companion object {
+        /** Minutes after midnight. */
+        val TIMES = listOf(1, 20 * 60, 20 * 60 + 31)
+    }
+}
+
 enum class Slot(val minute: Int) {
     PLEDGE(7 * 60),
     WARN(17 * 60),
@@ -86,6 +109,20 @@ object Schedules {
     fun scheduleAll(context: Context) {
         scheduleSync(context)
         Slot.entries.forEach { scheduleSlot(context, it, ExistingWorkPolicy.KEEP) }
+        scheduleTick(context, ExistingWorkPolicy.KEEP)
+    }
+
+    fun scheduleTick(context: Context, policy: ExistingWorkPolicy) {
+        val zone = ZoneId.systemDefault()
+        val now = LocalDateTime.now(zone)
+        val next = (0..1).flatMap { d ->
+            TickWorker.TIMES.map { now.toLocalDate().plusDays(d.toLong()).atTime(it / 60, it % 60) }
+        }.first { it.isAfter(now.plusSeconds(30)) }
+        val delay = next.atZone(zone).toInstant().toEpochMilli() - System.currentTimeMillis()
+        val request = OneTimeWorkRequestBuilder<TickWorker>()
+            .setInitialDelay(delay.coerceAtLeast(0), TimeUnit.MILLISECONDS)
+            .build()
+        WorkManager.getInstance(context).enqueueUniqueWork("tick", policy, request)
     }
 
     fun scheduleSync(context: Context) {
@@ -129,6 +166,10 @@ class ActionReceiver : BroadcastReceiver() {
                 }
                 Notifier.cancelNudge(context)
                 Notifier.announce(context, events, force = true)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("ActionReceiver", "Couldn't run ${intent.action}", e)
             } finally {
                 pending.finish()
             }

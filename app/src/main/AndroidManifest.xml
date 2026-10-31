@@ -77,6 +77,8 @@
             android:name=".widget.BathHoldActivity"
             android:exported="false"
             android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|keyboardHidden"
             android:taskAffinity=""
             android:theme="@style/Theme.HabitTracker.Dialog" />
 
