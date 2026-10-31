@@ -200,7 +200,7 @@ private fun BathSheet(s: HomeState, close: () -> Unit) {
         }
         Text("Shortcut: long-press the Bath row, or use the Bath widget.", style = T.small)
     } else {
-        Text("Logged at ${F.time(d.bathAt, s.zone)}.", style = T.h2)
+        Text("Logged at ${F.time(d.bathAt!!, s.zone)}.", style = T.h2)
         val opened = s.packs.any { it.date == d.date.toString() && it.openedAt != null }
         if (!(s.perfect && opened)) {
             SheetButton("Remove today's bath", C.s2, C.ink, Modifier.testTag("undo-bath")) {

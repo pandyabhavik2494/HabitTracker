@@ -740,7 +740,7 @@ private fun WeighTile(s: HomeState, modifier: Modifier, onClick: () -> Unit) {
                 )
             }
         } else {
-            Text(if (d.weighedAt == null) "Instant quarter: 30 seconds closes it." else "Weighed ${F.time(d.weighedAt, s.zone)}.", style = T.small)
+            Text(if (d.weighedAt == null) "Instant quarter: 30 seconds closes it." else "Weighed ${F.time(d.weighedAt!!, s.zone)}.", style = T.small)
         }
     }
 }
@@ -781,7 +781,7 @@ private fun BathTile(s: HomeState, modifier: Modifier, onClick: () -> Unit) {
         onLongPress = if (d.bathAt == null) ({ logBath(a, s, view, scope) }) else null,
     ) {
         if (d.bathAt != null) {
-            val parts = F.time(d.bathAt, s.zone).split(" ")
+            val parts = F.time(d.bathAt!!, s.zone).split(" ")
             BigValue(parts[0], parts.getOrElse(1) { "" })
         } else {
             Text("Not yet", style = T.big.copy(fontSize = 28.sp, color = C.dim))
