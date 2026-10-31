@@ -93,7 +93,9 @@ object Share {
         val cx = w / 2f
         val cy = h * if (h > w) 0.40f else 0.42f
         val glow = Paint()
-        glow.shader = RadialGradient(cx, cy, stickerSize * 0.75f, 0x66A98BFF, 0x00000000, Shader.TileMode.CLAMP)
+        // The glow and the rarity line use the rarity's one colour, as in the album and the reveal.
+        val rarityArgb = cat.rarity.argb.toInt()
+        glow.shader = RadialGradient(cx, cy, stickerSize * 0.75f, (rarityArgb and 0x00FFFFFF) or 0x66000000, 0x00000000, Shader.TileMode.CLAMP)
         c.drawCircle(cx, cy, stickerSize * 0.75f, glow)
         CatArt.get(context, cat.id)?.let { art ->
             c.save()
@@ -119,6 +121,8 @@ object Share {
             textAlign = Paint.Align.CENTER
             letterSpacing = 0.18f
         }
+        val rarityPaint = Paint(small).apply { color = rarityArgb }
+        c.drawText(cat.rarity.line.uppercase(), cx, cy - stickerSize / 2 - w * 0.05f, rarityPaint)
         val ny = cy + stickerSize / 2 + w * 0.14f
         c.drawText(cat.name, cx, ny, name)
         if (cat.breed != cat.name) c.drawText(cat.breed.uppercase(), cx, ny + w * 0.06f, small)

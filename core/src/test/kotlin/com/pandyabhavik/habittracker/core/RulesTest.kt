@@ -168,6 +168,21 @@ class RulesTest {
         assertEquals("Perfect Day #24 is up for grabs", Coach.sealLine(Day(today), goals, at(7), emptySet(), 24))
     }
 
+    @Test fun paceNeedsAMarginAndAStartedDay() {
+        val closed = setOf(Habit.WEIGH)
+        // 820 steps at 8 AM is not "ahead of pace": too early to judge.
+        assertEquals("3 to go", Coach.sealLine(Day(today, steps = 820), goals, at(8), closed, 24))
+        // Noon expects 3,571.
+        assertEquals("Ahead of pace", Coach.sealLine(Day(today, steps = 6_140), goals, at(12), closed, 24))
+        assertEquals("On pace", Coach.sealLine(Day(today, steps = 3_700), goals, at(12), closed, 24))
+        assertEquals("1,571 steps behind pace", Coach.sealLine(Day(today, steps = 2_000), goals, at(12), closed, 24))
+    }
+
+    @Test fun walkLineKeepsTheNumberWithItsWords() {
+        val m = Coach.nextMove(Day(today, steps = 820, weighedAt = 1), goals, at(13), setOf(Habit.WEIGH))
+        assertEquals("A 20-minute walk now puts you at 2,820.", m?.title)
+    }
+
     @Test fun nextMovePrefersTheInstantQuarterInTheMorning() {
         val m = Coach.nextMove(Day(today, steps = 400), goals, at(7), emptySet())
         assertEquals("Weigh in: instant quarter.", m?.title)

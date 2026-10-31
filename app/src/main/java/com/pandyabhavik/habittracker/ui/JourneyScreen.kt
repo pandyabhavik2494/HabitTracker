@@ -43,6 +43,7 @@ import com.pandyabhavik.habittracker.core.Streaks
 import com.pandyabhavik.habittracker.data.HomeState
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -82,10 +83,10 @@ private fun JourneyCover(s: HomeState) {
 private fun JourneyWide(s: HomeState) {
     var offset by rememberSaveable { mutableIntStateOf(0) }
     val month = YearMonth.from(s.now).minusMonths(offset.toLong())
-    val rate = s.rate30
+    val share = perfectShare(s)
     TopBar(
         s, showSettings = false,
-        title = if (rate != null) "You close all four ${(rate * 100).roundToInt()}% of days." else "Your first Perfect Day starts the chain.",
+        title = if (share != null) "You close all four $share% of days." else "Your first Perfect Day starts the chain.",
         kicker = "Journey",
     )
     Spacer(Modifier.height(8.dp))
@@ -107,6 +108,21 @@ private fun JourneyWide(s: HomeState) {
             WeekByHabit(s)
         }
     }
+}
+
+/**
+ * Perfect Days as a whole percent of every tracked day, rounded to nearest: the same days the "Perfect Days"
+ * tile counts. Today counts only once it's Perfect; until then it's still in progress.
+ */
+private fun perfectShare(s: HomeState): Int? {
+    val today = s.now.toLocalDate()
+    val first = s.days.keys.minOrNull() ?: return null
+    val last = if (s.perfect) today else today.minusDays(1)
+    if (last.isBefore(first)) return null
+    val total = ChronoUnit.DAYS.between(first, last) + 1
+    val perfect = s.days.count { (d, day) -> !d.isBefore(first) && !d.isAfter(last) && day.perfectAt != null } +
+        if (s.perfect && s.days[today]?.perfectAt == null) 1 else 0
+    return (perfect * 100.0 / total).roundToInt()
 }
 
 @Composable
@@ -161,6 +177,14 @@ private fun MonthCalendar(s: HomeState, month: YearMonth, onPrev: () -> Unit, on
                     }
                 }
             }
+        }
+        Spacer(Modifier.height(8.dp))
+        // The same keys as the heatmap's legend, drawn the way the calendar draws each day.
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Legend(C.bath, "Perfect", brush = Brush.linearGradient(listOf(C.bath, C.weigh)))
+            Legend(C.swap, "Saved")
+            Legend(Color.Transparent, "Missed", outline = C.risk.copy(alpha = 0.6f))
+            Legend(Color.Transparent, "Today", outline = C.ink)
         }
     }
 }
@@ -253,13 +277,15 @@ private fun HeatGrid(s: HomeState) {
                 for (col in 0 until 26) {
                     val d = start.plusDays((col * 7 + row).toLong())
                     val day = s.days[d]
-                    val noData = d.isBefore(first) && day?.perfectAt == null && day?.savedWithSwaps != true
+                    val done = day?.perfectAt != null || (d == today && s.perfect)
+                    val saved = day?.savedWithSwaps == true
+                    // Future days have no data yet; today, still in progress, is an ink outline, never a miss.
+                    val noData = d.isAfter(today) || (d.isBefore(first) && !done && !saved)
+                    val inProgress = d == today && !done && !saved
                     val color = when {
-                        d.isAfter(today) -> Color.Transparent
-                        day?.perfectAt != null || (d == today && s.perfect) -> C.ink
-                        day?.savedWithSwaps == true -> C.swap
-                        noData -> Color.Transparent
-                        d == today -> C.s3
+                        done -> C.ink
+                        saved -> C.swap
+                        noData || inProgress -> Color.Transparent
                         else -> MissedCell
                     }
                     val cell = RoundedCornerShape(3.dp)
@@ -269,7 +295,13 @@ private fun HeatGrid(s: HomeState) {
                             .aspectRatio(1f)
                             .clip(cell)
                             .background(color)
-                            .then(if (noData) Modifier.border(1.dp, NoDataCell, cell) else Modifier),
+                            .then(
+                                when {
+                                    inProgress -> Modifier.border(1.5.dp, C.ink, cell)
+                                    noData -> Modifier.border(1.dp, NoDataCell, cell)
+                                    else -> Modifier
+                                },
+                            ),
                     )
                 }
             }
@@ -279,6 +311,7 @@ private fun HeatGrid(s: HomeState) {
             Legend(C.ink, "Perfect Day")
             Legend(C.swap, "Saved with swaps")
             Legend(MissedCell, "Missed")
+            Legend(Color.Transparent, "Today", outline = C.ink)
             Legend(Color.Transparent, "No data", outline = NoDataCell)
         }
     }
@@ -288,13 +321,13 @@ private val MissedCell = Color(0xFF2A2F3E)
 private val NoDataCell = Color(0xFF1C1F28)
 
 @Composable
-private fun Legend(color: Color, text: String, outline: Color? = null) {
+private fun Legend(color: Color, text: String, outline: Color? = null, brush: Brush? = null) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier
                 .size(9.dp)
                 .clip(CircleShape)
-                .background(color)
+                .then(if (brush != null) Modifier.background(brush) else Modifier.background(color))
                 .then(if (outline != null) Modifier.border(1.dp, outline, CircleShape) else Modifier),
         )
         Spacer(Modifier.width(6.dp))
@@ -336,13 +369,21 @@ private fun HitRates(s: HomeState) {
                 )
             }
         }
-        val worst = rates.filterValues { it != null }.minByOrNull { it.value!! }
-        if (worst != null && (worst.value ?: 1f) < 1f) {
+        // Single a habit out only when it's clearly the weak one: at least 3 points below every other habit.
+        val pct = rates.mapNotNull { (h, r) -> r?.let { h to (it * 100).roundToInt() } }.sortedBy { it.second }
+        val worst = pct.firstOrNull()
+        if (worst != null && worst.second < 100) {
             Spacer(Modifier.height(8.dp))
             val p = s.pattern
+            val single = pct.size == 1 || pct[1].second - worst.second >= 3
+            val nb = F.NBSP
             Text(
-                "${F.habitName(worst.key, s).replaceFirstChar { it.uppercase(Locale.US) }} is the habit standing between you and a ${s.best + 1}+ streak." +
-                    if (p != null && p.habit == worst.key) " Most misses land on ${p.weekday.getDisplayName(java.time.format.TextStyle.FULL, Locale.US)}s." else "",
+                if (single) {
+                    "${F.habitName(worst.first, s).replaceFirstChar { it.uppercase(Locale.US) }} is the habit standing between you and a longer${nb}streak." +
+                        if (p != null && p.habit == worst.first) " Most misses land on${nb}${p.weekday.getDisplayName(java.time.format.TextStyle.FULL, Locale.US)}s." else ""
+                } else {
+                    "Your habits are even: keep closing all${nb}four."
+                },
                 style = T.small,
             )
         }

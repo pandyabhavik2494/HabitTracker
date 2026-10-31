@@ -66,6 +66,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Why the last sync failed, or null when it's fine (or still running). Today and Settings both
+     * show this, so they never disagree. See [syncFailure] in the companion for the rule.
+     */
+    val syncFailure: StateFlow<String?> = combine(state, granted, grantedChecked, syncing) { s, g, checked, busy ->
+        if (s == null || busy) null else MainViewModel.syncFailure(s.settings, runCatching { healthStatus() }.getOrNull(), g, checked)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
     fun sync() {
         viewModelScope.launch {
             repo.sync()
@@ -123,5 +131,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         val PERMISSIONS = HealthGateway.ALL
+
+        /**
+         * The one sync-status rule for Today and Settings: a failure when Health Connect isn't usable,
+         * when none of the core permissions are granted (once the granted set has been read), or when
+         * the last sync recorded an error. Null means show "Synced X ago". Callers skip this while syncing.
+         */
+        fun syncFailure(settings: Settings, status: HealthStatus?, granted: Set<String>, grantedChecked: Boolean): String? = when {
+            status != null && status != HealthStatus.AVAILABLE -> "Last sync failed: Health Connect isn't available"
+            grantedChecked && HealthGateway.CORE.none { it in granted } -> "Last sync failed: no Health Connect access"
+            settings.lastSyncError != null -> "Last sync failed: ${settings.lastSyncError}"
+            else -> null
+        }
     }
 }

@@ -11,9 +11,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,7 +45,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,6 +65,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -85,6 +88,7 @@ import com.pandyabhavik.habittracker.core.CalorieState
 import com.pandyabhavik.habittracker.core.Coach
 import com.pandyabhavik.habittracker.core.Habit
 import com.pandyabhavik.habittracker.core.Rules
+import com.pandyabhavik.habittracker.core.Streaks
 import com.pandyabhavik.habittracker.data.HomeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -119,19 +123,49 @@ fun TodayScreen(s: HomeState) {
             .fillMaxSize()
             .testTag("today"),
         indicator = {
-            PullToRefreshDefaults.Indicator(
-                state = ptr,
-                isRefreshing = pulling,
-                containerColor = C.s2,
-                color = C.bath,
-                modifier = Modifier.align(Alignment.TopCenter),
-            )
+            // A lighter disc with a clear cyan arc: it slides down with the pull, fills as the pull
+            // nears the trigger point, and spins while the sync runs.
+            Box(
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .graphicsLayer {
+                        val f = if (pulling) 1f else ptr.distanceFraction.coerceIn(0f, 1.5f)
+                        translationY = f * 76.dp.toPx() - 48.dp.toPx()
+                        alpha = if (pulling) 1f else ptr.distanceFraction.coerceIn(0f, 1f)
+                    }
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(PullDisc)
+                    .border(1.dp, C.bath.copy(alpha = 0.35f), CircleShape)
+                    .testTag("pull-indicator"),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (pulling) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = C.bath,
+                        strokeWidth = 3.dp,
+                        trackColor = C.bath.copy(alpha = 0.2f),
+                    )
+                } else {
+                    CircularProgressIndicator(
+                        progress = { (ptr.distanceFraction * 0.85f).coerceIn(0.08f, 0.85f) },
+                        modifier = Modifier.size(24.dp),
+                        color = C.bath,
+                        strokeWidth = 3.dp,
+                        trackColor = C.bath.copy(alpha = 0.2f),
+                    )
+                }
+            }
         },
     ) {
         if (a.wide) TodayWide(s) { sheet = it } else TodayCover(s) { sheet = it }
     }
     sheet?.let { HabitSheet(it, s) { sheet = null } }
 }
+
+/** The pull-to-refresh disc: lighter than the cards, so it reads against them. */
+private val PullDisc = Color(0xFF2A3040)
 
 // ---- Cover screen ---------------------------------------------------------------------------------
 
@@ -164,28 +198,49 @@ private fun TodayCover(s: HomeState, onHabit: (Habit) -> Unit) {
 
 @Composable
 private fun TodayWide(s: HomeState, onHabit: (Habit) -> Unit) {
+    // One rule on wide screens: the Seal and its cards on the left, the tiles, this week and the sync
+    // line on the right. Each pane scrolls on its own, so neither is ever cut off by the other.
     Column(
         Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp),
     ) {
         TopBar(s, showSettings = false)
-        // With one card or none under the Seal the left pane runs out long before the tiles do, so the
-        // week strip and the sync line move under the cards to balance the two panes.
-        val weekLeft = cardCount(s) <= 1
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            Column(Modifier.weight(0.47f), horizontalAlignment = Alignment.CenterHorizontally) {
-                BigSeal(s, 300.dp)
-                Spacer(Modifier.height(8.dp))
-                Cards(s, Modifier.fillMaxWidth())
-                if (weekLeft) {
-                    Spacer(Modifier.height(10.dp))
-                    WeekStrip(s)
-                    SyncLine(s)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            BoxWithConstraints(
+                Modifier
+                    .weight(0.47f)
+                    .fillMaxHeight(),
+            ) {
+                // Small enough that the Seal's glow (about 10% of its size past each side) stays inside
+                // the pane, which clips because it scrolls.
+                val seal = minOf(300.dp, maxWidth * 0.8f)
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Spacer(Modifier.height(seal * 0.1f))
+                    BigSeal(s, seal)
+                    Spacer(Modifier.height(seal * 0.06f))
+                    Cards(s, Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(24.dp))
                 }
             }
-            Column(Modifier.weight(0.53f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                Modifier
+                    .weight(0.53f)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StepsTile(s, Modifier.weight(1f)) { onHabit(Habit.STEPS) }
                     CaloriesTile(s, Modifier.weight(1f)) { onHabit(Habit.CALORIES) }
@@ -194,13 +249,11 @@ private fun TodayWide(s: HomeState, onHabit: (Habit) -> Unit) {
                     WeighTile(s, Modifier.weight(1f)) { onHabit(Habit.WEIGH) }
                     BathTile(s, Modifier.weight(1f)) { onHabit(Habit.BATH) }
                 }
-                if (!weekLeft) {
-                    WeekStrip(s)
-                    SyncLine(s)
-                }
+                WeekStrip(s)
+                SyncLine(s)
+                Spacer(Modifier.height(12.dp))
             }
         }
-        Spacer(Modifier.height(24.dp))
     }
 }
 
@@ -269,6 +322,8 @@ fun BigSeal(s: HomeState, size: Dp) {
                         lineBreak = LineBreak.Heading,
                     ),
                     textAlign = TextAlign.Center,
+                    // Always two lines tall, so the numeral above doesn't jump when the caption wraps.
+                    minLines = 2,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -300,23 +355,6 @@ private fun sealCaption(s: HomeState, open: List<Habit>): String {
 private fun String.keepLastWord(): String {
     val i = lastIndexOf(' ')
     return if (i <= 0 || length - i > 12) this else substring(0, i) + F.NBSP + substring(i + 1)
-}
-
-/** How many full-size cards [Cards] shows (the small pledged note doesn't count). Keep in step with it. */
-private fun cardCount(s: HomeState): Int {
-    val hour = s.now.hour
-    val showPledge = s.today.pledgedAt == null && hour < 12 && !s.perfect
-    return listOf(
-        s.unopened.isNotEmpty(),
-        s.perfect,
-        s.comebackFrom != null && !s.perfect,
-        s.savedYesterday && hour < 14,
-        s.atRisk,
-        showPledge,
-        s.pattern != null && hour < 14 && !s.atRisk,
-        !s.atRisk && !showPledge && s.move != null,
-        s.settings.lastSync == null && s.settings.lastSyncError != null,
-    ).count { it }
 }
 
 /** The context cards: the pack, comeback, saved streak, risk, pledge, a pattern, the best next move. */
@@ -438,11 +476,15 @@ private fun RiskCard(s: HomeState) {
         )
         Spacer(Modifier.height(4.dp))
         Text((s.move?.title ?: "${open.size} quarters still open.").keepLastWord(), style = T.h2)
-        Text("Close it and Perfect Day #${s.dayNumber} earns you a sticker pack.", style = T.body)
-        Spacer(Modifier.height(10.dp))
+        Text("Close it for Perfect Day #${s.dayNumber} and a sticker pack.", style = T.body)
+        // The gap above the button only when there is one, so the card's top and bottom padding match.
         when (open.firstOrNull()) {
-            Habit.BATH -> if (open.size == 1) HoldButton("Hold to log bath", haptics = s.settings.haptics) { a.vm.logBath() }
+            Habit.BATH -> if (open.size == 1) {
+                Spacer(Modifier.height(12.dp))
+                HoldButton("Hold to log bath", haptics = s.settings.haptics) { a.vm.logBath() }
+            }
             Habit.CALORIES -> if (open.size == 1 && s.calorieState == CalorieState.UNDER) {
+                Spacer(Modifier.height(12.dp))
                 HoldButton("Hold to close the kitchen", haptics = s.settings.haptics) { a.vm.closeKitchen() }
             }
             Habit.STEPS -> StartWalk()
@@ -455,6 +497,7 @@ private fun RiskCard(s: HomeState) {
 private fun StartWalk() {
     val context = LocalContext.current
     val intent = remember { fitnessIntent(context) } ?: return
+    Spacer(Modifier.height(12.dp))
     Box(
         Modifier
             .fillMaxWidth()
@@ -531,7 +574,7 @@ private fun ComebackCard(s: HomeState) {
         borderColor = C.risk.copy(alpha = 0.35f),
         background = Brush.radialGradient(listOf(Color(0x26FF5A6A), C.s1), radius = 900f),
     ) {
-        Caps("Fresh start · comeback", color = C.risk, icon = Icons.Rounded.History)
+        Caps("Fresh start", color = C.risk, icon = Icons.Rounded.History)
         Spacer(Modifier.height(6.dp))
         Text("Comeback: 3 Perfect Days in a row", style = T.h2)
         Text("Pull it off and Maneki the Lucky Cat is yours, guaranteed. Comebacks are the only way to get her.", style = T.body)
@@ -567,13 +610,13 @@ private fun SavedCard(s: HomeState) {
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            "3 swaps saved ${s.dayNumber - 1} days",
+            "${Streaks.SWAPS_PER_SAVE} swaps saved your ${s.streak}-day streak.",
             style = T.h2,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            "Yesterday slipped, so you traded three duplicates to keep the streak. ${s.swaps} swap${if (s.swaps == 1) "" else "s"} left. Every duplicate you pull adds one.",
+            "${s.swaps} swap${if (s.swaps == 1) "" else "s"} left. Every duplicate you pull adds one.",
             style = T.body,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
@@ -595,7 +638,8 @@ private fun PatternCard(s: HomeState, habit: Habit, day: DayOfWeek, misses: Int,
         Caps("Pattern spotted", icon = Icons.Rounded.Insights)
         Spacer(Modifier.height(6.dp))
         Text("${name}s are your $what trap.", style = T.h2)
-        Text("$misses of your last $of ${name}s missed it. Want a 5 PM heads-up on ${name}s?", style = T.body)
+        val count = if (misses >= of) "All" else "$misses"
+        Text("$count of your last $of ${name}s missed it. Want a 5${F.NBSP}PM heads-up on ${name}s?", style = T.body)
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(
@@ -612,7 +656,7 @@ private fun PatternCard(s: HomeState, habit: Habit, day: DayOfWeek, misses: Int,
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    "Warn me ${day.getDisplayName(TextStyle.SHORT, Locale.US)}",
+                    "Warn me",
                     style = T.label,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -699,6 +743,9 @@ private fun logBath(a: AppActions, s: HomeState, view: android.view.View) {
 fun SyncLine(s: HomeState) {
     val a = LocalActions.current
     val syncing by a.vm.syncing.collectAsStateWithLifecycle()
+    // The same rule Settings uses (no access, Health Connect missing, or the last sync errored), so the
+    // two screens never disagree. "Synced X ago" only shows when the last sync went through.
+    val failure by a.vm.syncFailure.collectAsStateWithLifecycle()
     val now = s.now.atZone(s.zone).toInstant().toEpochMilli()
     Row(
         Modifier
@@ -708,7 +755,7 @@ fun SyncLine(s: HomeState) {
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        val error = s.settings.lastSyncError?.takeIf { !syncing }
+        val error = failure?.takeIf { !syncing }
         Icon(Icons.Rounded.Sync, null, tint = if (error != null) C.risk else C.dim, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(4.dp))
         Text(
@@ -988,11 +1035,22 @@ private fun WeekStrip(s: HomeState) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             for (i in 0..6) {
                 val date = start.plusDays(i.toLong())
-                val prog = if (date.isAfter(today)) emptyMap() else Habit.entries.associateWith { h ->
-                    if (s.closedOn(date, h) == true) 1f else if (date == today) (s.progress[h] ?: 0f) else 0f
-                }
+                val day = s.days[date]
+                // Saved with swaps: a dashed pink ring, as on Journey (it counts, but it wasn't closed).
+                // Days still to come: a faint thin ring, so they never read as misses.
+                val saved = day?.savedWithSwaps == true && day?.perfectAt == null && date != today
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Seal(prog, 34.dp, stroke = 14f, animate = false)
+                    when {
+                        date.isAfter(today) -> WeekRing(C.line, dashed = false, Modifier.testTag("week-future-$date"))
+                        saved -> WeekRing(C.swap, dashed = true, Modifier.testTag("week-saved-$date"))
+                        else -> {
+                            // Today shows its progress so far; past days what closed.
+                            val prog = Habit.entries.associateWith { h ->
+                                if (s.closedOn(date, h) == true) 1f else if (date == today) (s.progress[h] ?: 0f) else 0f
+                            }
+                            Seal(prog, 34.dp, stroke = 14f, animate = false)
+                        }
+                    }
                     Spacer(Modifier.height(4.dp))
                     Text(
                         date.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.US),
@@ -1001,5 +1059,23 @@ private fun WeekStrip(s: HomeState) {
                 }
             }
         }
+    }
+}
+
+/** A plain ring the size of the week strip's Seals: dashed for a day saved with swaps, faint for days to come. */
+@Composable
+private fun WeekRing(color: Color, dashed: Boolean, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(34.dp)) {
+        val w = if (dashed) 3.dp.toPx() else 1.5.dp.toPx()
+        // Same radius as the Seal's ring (41 of 100).
+        val r = size.minDimension * 0.41f
+        drawCircle(
+            color,
+            radius = r,
+            style = Stroke(
+                width = w,
+                pathEffect = if (dashed) PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx())) else null,
+            ),
+        )
     }
 }

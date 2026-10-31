@@ -23,8 +23,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -115,14 +117,23 @@ fun Seal(
     val perfect = values.all { it >= 1f } && bad == null
     val t by rememberClock(animate && (perfect || pulse != null))
     Box(modifier.size(size), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(size)) {
+        // The canvas is half as big again as the ring's box, centred on it, so the glow (which reaches
+        // about 20% past the box) is drawn inside the canvas and never cut off by its bounds.
+        Canvas(Modifier.requiredSize(size * SEAL_ROOM)) {
+            val inset = (this.size.width - this.size.width / SEAL_ROOM) / 2f
             drawIntoCanvas { c ->
-                SealArt.draw(c.nativeCanvas, this.size.width, values, t, stroke, pulse?.ordinal, bad?.ordinal)
+                val nc = c.nativeCanvas
+                nc.save()
+                nc.translate(inset, inset)
+                SealArt.draw(nc, this.size.width / SEAL_ROOM, values, t, stroke, pulse?.ordinal, bad?.ordinal)
+                nc.restore()
             }
         }
         content()
     }
 }
+
+private const val SEAL_ROOM = 1.5f
 
 /** A round cat sticker, animated. */
 @Composable
@@ -269,10 +280,14 @@ fun HabitRow(
             }
         }
         Spacer(Modifier.width(10.dp))
-        when {
-            trailing != null -> trailing()
-            closed -> CheckDot(C.of(habit))
-            value != null -> Text(value, style = T.num.copy(color = valueColor), textAlign = TextAlign.End)
+        // A fixed-width slot for the trailing value, so the text column (and its progress bar) is the
+        // same width on every row, whatever the number's width.
+        Box(Modifier.widthIn(min = 64.dp), contentAlignment = Alignment.CenterEnd) {
+            when {
+                trailing != null -> trailing()
+                closed -> CheckDot(C.of(habit))
+                value != null -> Text(value, style = T.num.copy(color = valueColor), textAlign = TextAlign.End, maxLines = 1)
+            }
         }
     }
 }

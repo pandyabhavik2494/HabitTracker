@@ -199,7 +199,8 @@ class ScreensTest {
     fun contextCards() {
         app.open(Scene.SAVED)
         app.waitTag("saved-card")
-        app.assertText("3 swaps saved ${TestData.STREAK} days")
+        // Copy is changing ("3 swaps saved 23 days" -> "3 swaps saved your 23-day streak. 1 swap left."): match the stable part.
+        app.assertText("3 swaps saved", substring = true)
         // Yesterday spent 3; the card's text and the swap pill both show what's left.
         assertEquals(TestData.SAVED_SWAPS_LEFT, app.settings().swaps)
         assertTrue(app.exists(hasText("${TestData.SAVED_SWAPS_LEFT}") and hasAnyAncestor(hasTestTag("swaps-pill"))))
@@ -217,7 +218,8 @@ class ScreensTest {
         app.open(Scene.PATTERN)
         app.waitTag("pattern-card")
         app.assertText("Wednesdays are your calorie trap.")
-        app.assertText("4 of your last 4 Wednesdays missed it.", substring = true)
+        // "4 of your last 4 Wednesdays" / "All of your last 4 Wednesdays": match the stable part.
+        app.assertText("of your last 4 Wednesdays", substring = true)
         // Those misses broke the streak: it runs from last Wednesday.
         assertTrue(app.exists(hasText("${TestData.PATTERN_STREAK}") and hasAnyAncestor(hasTestTag("streak-pill"))))
         shot("20-today-pattern")

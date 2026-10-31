@@ -8,16 +8,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -108,7 +106,7 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
                 Stepper("Kitchen locks at", F.minutesOfDay(st.kitchenLockMinute), "kitchen-lock",
                     { vm.updateSettings { it.copy(kitchenLockMinute = (it.kitchenLockMinute - 15).coerceAtLeast(17 * 60)) } },
                     { vm.updateSettings { it.copy(kitchenLockMinute = (it.kitchenLockMinute + 15).coerceAtMost(23 * 60 + 45)) } })
-                Text("Tap Close kitchen whenever you're done eating; if you forget, it locks itself at this time. Food logged after that still counts.", style = T.small)
+                Text("Hold to close the kitchen whenever you're done eating; if you forget, it locks itself at this time. Food logged after that still counts.", style = T.small)
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Weight unit", style = T.label, modifier = Modifier.weight(1f))
@@ -139,7 +137,7 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
             }
             Panel(Modifier.fillMaxWidth()) {
                 Caps("Feel")
-                Toggle("Haptics on closes, pledges and pack rips", st.haptics, "haptics") { v -> vm.updateSettings { it.copy(haptics = v) } }
+                Toggle("Haptics on closes and pack rips", st.haptics, "haptics") { v -> vm.updateSettings { it.copy(haptics = v) } }
             }
             Panel(Modifier.fillMaxWidth().testTag("health-panel")) {
                 Caps("Health Connect")
@@ -158,14 +156,8 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                val noAccess = status != HealthStatus.AVAILABLE ||
-                    (grantedChecked && HealthGateway.CORE.none { it in granted })
-                val failure = when {
-                    syncing -> null
-                    noAccess -> "Last sync failed: no Health Connect access"
-                    st.lastSyncError != null -> "Last sync failed: ${st.lastSyncError}"
-                    else -> null
-                }
+                // Same rule as Today's sync line.
+                val failure = if (syncing) null else MainViewModel.syncFailure(st, status, granted, grantedChecked)
                 Text(
                     when {
                         syncing -> "Syncing…"
@@ -181,7 +173,7 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
                 )
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Pill2(if (status == HealthStatus.AVAILABLE) "Allow access" else "Get Health Connect", Modifier.weight(1f)) { a.askHealth() }
+                    Pill2(if (status == HealthStatus.AVAILABLE) "Allow access" else "Get Health Connect", Modifier.weight(1f), primary = status != HealthStatus.AVAILABLE || HealthGateway.CORE.any { it !in granted }) { a.askHealth() }
                     Pill2("Sync now", Modifier.weight(1f).testTag("sync-now")) { vm.sync() }
                 }
                 if (status == HealthStatus.AVAILABLE) {
@@ -189,10 +181,16 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
                     Pill2("Open Health Connect") { runCatching { context.startActivity(vm.repo.health.settingsIntent()) } }
                 }
             }
-            Text("Habit Tracker ${BuildConfig.VERSION_NAME}", style = T.small, modifier = Modifier.padding(8.dp))
-            Spacer(Modifier.height(24.dp))
-            // Keeps the version line clear of the gesture bar / taskbar.
-            Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+            // Indented like the panels' content (panel padding is 16dp), and clear of the gesture bar / taskbar.
+            Text(
+                "Habit Tracker ${BuildConfig.VERSION_NAME}",
+                style = T.small,
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 4.dp)
+                    .navigationBarsPadding()
+                    .padding(bottom = 24.dp),
+            )
         }
         }
     }
@@ -203,7 +201,7 @@ private fun Stepper(label: String, value: String, tag: String, onMinus: () -> Un
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = T.label, modifier = Modifier.weight(1f))
         Round(Icons.Rounded.Remove, "Less", "$tag-minus", onMinus)
-        Text(value, style = T.label, modifier = Modifier.widthIn(min = 92.dp).padding(horizontal = 8.dp).testTag("$tag-value"), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Text(value, style = T.label, maxLines = 1, modifier = Modifier.width(112.dp).padding(horizontal = 8.dp).testTag("$tag-value"), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         Round(Icons.Rounded.Add, "More", "$tag-plus", onPlus)
     }
 }
@@ -230,7 +228,7 @@ private fun Toggle(label: String, on: Boolean, tag: String, onChange: (Boolean) 
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = T.body.copy(color = C.ink), modifier = Modifier.weight(1f))
+        Text(label, style = T.body.copy(color = C.ink), modifier = Modifier.weight(1f).padding(end = 16.dp))
         Switch(
             checked = on,
             onCheckedChange = onChange,
@@ -289,14 +287,14 @@ private fun Access(label: String, ok: Boolean?) {
 }
 
 @Composable
-fun Pill2(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun Pill2(text: String, modifier: Modifier = Modifier, primary: Boolean = false, onClick: () -> Unit) {
     Box(
         modifier
             .height(44.dp)
             .clip(CircleShape)
-            .background(C.s2)
+            .background(if (primary) C.bath else C.s2)
             .clickable { onClick() }
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center,
-    ) { Text(text, style = T.label) }
+    ) { Text(text, style = T.label.copy(color = if (primary) Color(0xFF04141A) else C.ink)) }
 }

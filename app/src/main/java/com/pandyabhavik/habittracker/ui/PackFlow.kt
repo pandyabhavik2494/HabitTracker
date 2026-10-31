@@ -153,7 +153,7 @@ private fun Sealed(s: HomeState, pack: PackEntity, onOpened: (PackResult) -> Uni
                 HabitRepository.REASON_MILESTONE -> "${s.streak}-day milestone" to (if (minRarity == Rarity.HOLO.name) "Holo guaranteed." else "Rare or better, guaranteed.")
                 else -> "Perfect Day #${packNumber(s, pack)}" to "You earned a pack."
             }
-            val kickerColor = Catalog.find(fixedCat)?.let { F.rarityColor(it.rarity) } ?: C.ink
+            val kickerColor = Catalog.find(fixedCat)?.rarity?.color ?: C.ink
             Text(kicker.uppercase(), style = T.caps.copy(color = kickerColor, letterSpacing = 3.sp))
             Spacer(Modifier.height(10.dp))
             if (reason == HabitRepository.REASON_DAILY || reason == HabitRepository.REASON_MILESTONE) StreakTicker(s.streak)
@@ -309,7 +309,7 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
     val context = LocalContext.current
     val view = LocalView.current
     val cat = r.cat
-    val color = F.rarityColor(cat.rarity)
+    val color = cat.rarity.color
     val drop = remember { Animatable(0f) }
     val flash = remember { Animatable(0.9f) }
     // Read only inside draw lambdas, so the frame clock never recomposes the reveal.
@@ -370,7 +370,7 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text(F.rarityLine(cat.rarity).uppercase(), style = T.caps.copy(color = color, letterSpacing = 3.sp), modifier = Modifier.testTag("reveal-rarity"))
+                Text(cat.rarity.line.uppercase(), style = T.caps.copy(color = color, letterSpacing = 3.sp), modifier = Modifier.testTag("reveal-rarity"))
                 Spacer(Modifier.height(14.dp))
                 Box(contentAlignment = Alignment.TopEnd) {
                     Box(
@@ -431,7 +431,7 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
                     if (!r.isNew) {
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "Duplicate: you have ×$copies. The extra becomes a swap; 3 swaps save a missed day. You have ${s.swaps}.",
+                            "Duplicate (×$copies): +1 swap. You now have ${s.swaps} swap${if (s.swaps == 1) "" else "s"} — 3${F.NBSP}save a missed${F.NBSP}day.",
                             style = T.small,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.widthIn(max = 420.dp),
@@ -471,7 +471,7 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
                                 left == 0 -> "Series complete. Every cat is yours."
                                 unlockOnlyLeft == 0 -> "$left ${if (left == 1) "cat" else "cats"} still out there, all from packs."
                                 unlockOnlyLeft == left -> "$left ${if (left == 1) "cat" else "cats"} still out there, unlock only: never from packs."
-                                else -> "$left cats still out there. $unlockOnlyLeft of them never come from packs: unlock them."
+                                else -> "$left cats still out there. $unlockOnlyLeft can't come from packs: earn them on special${F.NBSP}days."
                             },
                             style = T.small,
                         )

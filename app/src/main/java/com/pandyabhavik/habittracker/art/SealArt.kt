@@ -3,18 +3,16 @@ package com.pandyabhavik.habittracker.art
 import android.graphics.Bitmap
 import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
-import android.graphics.ComposeShader
+import android.graphics.Matrix
 import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.RadialGradient
 import android.graphics.RectF
-import android.graphics.Shader
 import android.graphics.SweepGradient
 import kotlin.math.sin
 
 /**
  * The Seal: four quarter arcs, one per habit, laid out like the Today tiles: steps top left,
- * calories top right, bath bottom right, weigh-in bottom left. Closed quarters glow. A Perfect Day joins them into one iridescent ring.
+ * calories top right, bath bottom right, weigh-in bottom left. Closed quarters glow. A Perfect Day joins
+ * them into one glowing ring, each quarter still in its own colour, with a white shimmer travelling round.
  * Drawn on a 100 x 100 box, scaled to [size].
  */
 object SealArt {
@@ -38,50 +36,52 @@ object SealArt {
     /** Start angle of the quarter for habit ordinal [i]; 180 degrees is 9 o'clock. */
     private fun startAngle(i: Int): Float = 180f + SLOT[i] * 90f + GAP / 2
 
-    // Shaders and mask filters are immutable; the breathing glow steps through a few cached spreads
-    // instead of allocating every frame.
-    private const val BREATH_STEPS = 16
+    // Shaders and mask filters are made once, not every frame.
     private val closedBlur = BlurMaskFilter(5f, BlurMaskFilter.Blur.NORMAL)
 
-    // The Perfect ring: green, cyan, violet, pink, orange and back the same way. Orange only ever
-    // meets pink and green only meets cyan, so no stretch of the ring blends through yellow or olive.
-    // The first colour repeats at the end, and both ends hold it flat for a moment, so the sweep's
-    // start angle leaves no seam.
+    // The Perfect ring keeps every quarter in its own colour and place (green top left, orange top
+    // right, cyan bottom right, violet bottom left). Neighbours blend softly at 3, 6 and 9 o'clock
+    // (orange-cyan, cyan-violet, violet-green: none of them passes through yellow); green and orange
+    // never blend: they meet at a tiny gap at 12 o'clock, where the ring starts and ends.
+    // Sweep fractions start at 3 o'clock and run clockwise.
     private const val GREEN = 0xFF3BE38F.toInt()
     private const val CYAN = 0xFF43D3EA.toInt()
     private const val VIOLET = 0xFFA98BFF.toInt()
-    private const val PINK = 0xFFFF8FD0.toInt()
     private const val ORANGE = 0xFFFF8A3D.toInt()
+    /** Halfway from orange to cyan, so the blend across the sweep's start angle has no seam. */
+    private const val ORANGE_CYAN = 0xFFA1AE93.toInt()
+    /** Degrees of the gap at 12 o'clock between the green and orange quarters. */
+    private const val SEAM = 2.5f
     private val sweep = SweepGradient(
         50f, 50f,
-        intArrayOf(GREEN, GREEN, CYAN, VIOLET, PINK, ORANGE, PINK, VIOLET, CYAN, GREEN, GREEN),
-        floatArrayOf(0f, 0.02f, 0.14f, 0.26f, 0.38f, 0.5f, 0.62f, 0.74f, 0.86f, 0.98f, 1f),
+        intArrayOf(ORANGE_CYAN, CYAN, CYAN, VIOLET, VIOLET, GREEN, GREEN, ORANGE, ORANGE, ORANGE_CYAN),
+        floatArrayOf(0f, 0.04f, 0.21f, 0.29f, 0.46f, 0.54f, 0.75f, 0.75f, 0.96f, 1f),
     )
 
-    // The Perfect glow is the sweep masked by a soft radial band around the ring, filled as a disc.
-    // No blur mask filter (which left a hairline at the stroke's start point) and no path seam.
-    private var glowStroke = Float.NaN
-    private var glowCache: Array<Shader> = emptyArray()
-    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    // The glow uses the same colours but fades out on both sides of 12 o'clock, so the hard green/orange
+    // stop never shows as a line through the glow.
+    private val glowSweep = SweepGradient(
+        50f, 50f,
+        intArrayOf(
+            ORANGE_CYAN, CYAN, CYAN, VIOLET, VIOLET, GREEN, GREEN, GREEN and 0x00FFFFFF,
+            ORANGE and 0x00FFFFFF, ORANGE, ORANGE, ORANGE_CYAN,
+        ),
+        floatArrayOf(0f, 0.04f, 0.21f, 0.29f, 0.46f, 0.54f, 0.69f, 0.75f, 0.75f, 0.81f, 0.96f, 1f),
+    )
 
-    private fun glowShaders(stroke: Float): Array<Shader> {
-        if (stroke != glowStroke) {
-            glowStroke = stroke
-            glowCache = Array(BREATH_STEPS + 1) {
-                val spread = stroke / 2f + 6f + 10f * it / BREATH_STEPS
-                val outer = R + spread
-                val inner = (R - spread).coerceAtLeast(0f)
-                val band = RadialGradient(
-                    50f, 50f, outer,
-                    intArrayOf(0x00000000, 0x00000000, 0x66000000, 0xFF000000.toInt(), 0x55000000, 0x00000000),
-                    floatArrayOf(0f, inner / outer, (R - stroke / 2f) / outer, R / outer, (R + spread * 0.4f) / outer, 1f),
-                    Shader.TileMode.CLAMP,
-                )
-                ComposeShader(sweep, band, PorterDuff.Mode.DST_IN)
-            }
-        }
-        return glowCache
-    }
+    // A soft white highlight that travels round the sealed ring: the "alive" feel, without moving
+    // the quarters out of place.
+    private val shimmer = SweepGradient(
+        50f, 50f,
+        intArrayOf(0x00FFFFFF, 0x00FFFFFF, 0x59FFFFFF, 0x00FFFFFF, 0x00FFFFFF),
+        floatArrayOf(0f, 0.4f, 0.5f, 0.6f, 1f),
+    )
+    private val shimmerMatrix = Matrix()
+
+    // The Perfect glow: a stack of faint, ever wider full circles. Full circles have no start point
+    // (so no seam), and nothing is blurred or masked (so no clipped edge).
+    private const val GLOW_LAYERS = 12
+    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
 
     /**
      * @param progress four values 0..1 in habit order (steps, calories, weigh-in, bath).
@@ -104,20 +104,27 @@ object SealArt {
         val perfect = progress.all { it >= 1f } && bad == null
         if (perfect) {
             val breath = 0.5f + 0.5f * sin(t * 2.6f)
-            // Turn the canvas rather than the shader: the ring is round, and the cached glow shaders
-            // (built on the unrotated sweep) turn with it.
-            canvas.rotate((t * 40f) % 360f, 50f, 50f)
             if (glowOn) {
-                val spreadMax = stroke / 2f + 16f
-                glowPaint.shader = glowShaders(stroke)[(breath * BREATH_STEPS).toInt().coerceIn(0, BREATH_STEPS)]
-                glowPaint.alpha = (150 + 80 * breath).toInt()
-                canvas.drawCircle(50f, 50f, R + spreadMax, glowPaint)
+                // Widest layer: stroke + 2 + 2.4 * 11, about 19 units past the ring's centre line at the
+                // default stroke. Callers leave that much room round the 100 box (Seal, widget inset).
+                glowPaint.shader = glowSweep
+                for (k in GLOW_LAYERS - 1 downTo 0) {
+                    glowPaint.strokeWidth = stroke + 2f + 2.4f * k
+                    glowPaint.alpha = (13 + 9 * breath).toInt()
+                    canvas.drawCircle(50f, 50f, R, glowPaint)
+                }
                 glowPaint.shader = null
                 glowPaint.alpha = 255
             }
-            ring.shader = sweep
+            val start = 270f + SEAM / 2
+            val sweepDeg = 360f - SEAM
             ring.strokeWidth = stroke + 1f
-            canvas.drawCircle(50f, 50f, R, ring)
+            ring.shader = sweep
+            canvas.drawArc(oval, start, sweepDeg, false, ring)
+            shimmerMatrix.setRotate((t * 36f) % 360f, 50f, 50f)
+            shimmer.setLocalMatrix(shimmerMatrix)
+            ring.shader = shimmer
+            canvas.drawArc(oval, start, sweepDeg, false, ring)
             ring.shader = null
             canvas.restore()
             return

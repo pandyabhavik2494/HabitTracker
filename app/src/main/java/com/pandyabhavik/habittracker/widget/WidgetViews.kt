@@ -161,9 +161,17 @@ internal fun countdown(s: HomeState): String {
 
 private fun calorieOver(s: HomeState) = s.calorieState == CalorieState.OVER
 
-/** Bar fill for a habit: its progress, or a full red bar when calories went over. */
-private fun barValue(s: HomeState, h: Habit): Float =
-    if (h == Habit.CALORIES && calorieOver(s)) 1f else (s.progress[h] ?: 0f).coerceIn(0f, 1f)
+/**
+ * Bar fill for a habit: its progress. Calories are different: s.progress is a time-of-day fill until the
+ * kitchen locks (right for the Seal), but next to "710 left" a bar reads as a kcal meter, so here it shows
+ * kcal eaten against the limit; full once the kitchen is closed, and full (red) when over.
+ */
+private fun barValue(s: HomeState, h: Habit): Float = when {
+    h != Habit.CALORIES -> (s.progress[h] ?: 0f).coerceIn(0f, 1f)
+    s.calorieState == CalorieState.OVER || s.calorieState == CalorieState.CLOSED -> 1f
+    s.goals.calories <= 0 -> 0f
+    else -> (s.today.calories.toFloat() / s.goals.calories).coerceIn(0f, 1f)
+}
 
 private fun barColor(s: HomeState, h: Habit): Color = if (h == Habit.CALORIES && calorieOver(s)) C.risk else C.of(h)
 
@@ -174,7 +182,7 @@ private fun rowValue(s: HomeState, h: Habit): String = when (h) {
     Habit.CALORIES -> when (s.calorieState) {
         CalorieState.NOT_LOGGED -> "open"
         CalorieState.UNDER -> "${Coach.n((s.goals.calories - s.today.calories).coerceAtLeast(0))} left"
-        CalorieState.CLOSED, CalorieState.OVER -> Coach.n(s.today.calories)
+        CalorieState.CLOSED, CalorieState.OVER -> "${Coach.n(s.today.calories)} kcal"
     }
     Habit.WEIGH, Habit.BATH -> if (h in s.closed) "done" else "open"
 }
@@ -361,7 +369,8 @@ internal fun BathView(s: HomeState) {
                 val box = 66f * k
                 Box(modifier = GlanceModifier.size(box.dp), contentAlignment = Alignment.Center) {
                     Image(
-                        provider = ImageProvider(Art.ring(C.bath, 0.4f, box, glowAt = 0.4f)),
+                        // Just the faint track: any arc here read as progress on a habit that's yes/no.
+                        provider = ImageProvider(Art.ring(C.bath, 0f, box)),
                         contentDescription = null,
                         modifier = GlanceModifier.fillMaxSize(),
                     )
@@ -411,7 +420,9 @@ internal fun WideView(context: Context, s: HomeState) {
     val dims = LocalSize.current
     val k = scale(328f, 150f)
     val padH = 16f * k
-    val padV = 14f * k
+    // Tight vertically: four rows and the footer have to fit in 150dp at the cover screen's density and
+    // font scale too (14dp clipped the footer's descenders there).
+    val padV = 8f * k
     val seal = minOf(dims.height.value - 2f - 2 * padV, 120f * k).coerceAtLeast(56f)
     val gap = 14f * k
     val rowDp = dims.width.value - 2f - 2 * padH - seal - gap
@@ -435,11 +446,11 @@ internal fun WideView(context: Context, s: HomeState) {
             Spacer(GlanceModifier.width(gap.dp))
             Column(modifier = GlanceModifier.defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
                 Habit.entries.forEachIndexed { i, h ->
-                    if (i > 0) Spacer(GlanceModifier.height((6f * k).dp))
+                    if (i > 0) Spacer(GlanceModifier.height((5f * k).dp))
                     HabitRow(s, h, k, rowDp, valueDp = 70f * k)
                 }
-                Spacer(GlanceModifier.height((8f * k).dp))
-                Text(footer, style = ts(footerColor, 10.5f * k, FontWeight.Bold), maxLines = 1)
+                Spacer(GlanceModifier.height((5f * k).dp))
+                Text(footer, style = ts(footerColor, 10f * k, FontWeight.Bold), maxLines = 1)
             }
         }
     }
@@ -460,6 +471,21 @@ private fun Pill(icon: Int, text: String, color: Color, k: Float) {
         Spacer(GlanceModifier.width((4f * k).dp))
         Text(text, style = ts(color, 12f * k, FontWeight.Bold), maxLines = 1)
     }
+}
+
+/**
+ * Breaks [text] into two lines of about equal length when it likely won't fit on one line of [widthDp] at
+ * [sp] (scaled by the user's font size), so a wrap never leaves one word (like "2,820.") alone on line two.
+ * RemoteViews has no balanced line breaking, so this estimates with an average glyph width.
+ */
+internal fun balanced(context: Context, text: String, widthDp: Float, sp: Float): String {
+    if ('\n' in text) return text
+    val glyph = sp * context.resources.configuration.fontScale * 0.55f
+    val fits = if (glyph > 0f) (widthDp / glyph).toInt() else Int.MAX_VALUE
+    if (text.length <= fits) return text
+    val mid = text.length / 2
+    val at = text.indices.filter { text[it] == ' ' }.minByOrNull { kotlin.math.abs(it - mid) } ?: return text
+    return text.substring(0, at) + "\n" + text.substring(at + 1)
 }
 
 @Composable
@@ -516,7 +542,11 @@ internal fun LargeView(context: Context, s: HomeState) {
                     Text(cardTitle, style = ts(cardColor, 10f * k, FontWeight.Bold), maxLines = 1)
                 }
                 Spacer(GlanceModifier.height((3f * k).dp))
-                Text(cardBody, style = ts(C.ink, 12.5f * k, FontWeight.Medium), maxLines = 2)
+                Text(
+                    balanced(context, cardBody, inner - 24f * k, 12.5f * k),
+                    style = ts(C.ink, 12.5f * k, FontWeight.Medium),
+                    maxLines = 2,
+                )
             }
         }
     }
@@ -563,7 +593,8 @@ internal object Art {
         return cached(key) {
             val bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
             val c = Canvas(bmp)
-            val inset = px * 0.08f
+            // Wide enough that the Perfect glow's blur fades out before the bitmap edge (0.08 showed a hard box).
+            val inset = px * 0.14f
             c.translate(inset, inset)
             SealArt.draw(c, px - 2 * inset, progress, t = 0.6f, stroke = 10f, bad = bad)
             bmp

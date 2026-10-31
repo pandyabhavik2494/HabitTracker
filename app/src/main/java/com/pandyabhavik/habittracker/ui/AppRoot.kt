@@ -81,7 +81,7 @@ class AppActions(
     val askHealth: () -> Unit,
     val askNotifications: () -> Unit,
     val wide: Boolean,
-    /** Main's scope: outlives tab switches, so a snackbar and its action survive the screen that showed it. */
+    /** Main's scope: the snackbar's action still runs if the screen recomposes; Main dismisses it on a tab or Settings change. */
     private val scope: CoroutineScope,
     /** True while the pack overlay is up: messages would only sit on top of the reveal. */
     private val packOpen: () -> Boolean = { false },
@@ -162,6 +162,10 @@ private fun Main(
     // Opening a pack clears whatever message was showing ("Bath logged" over the reveal).
     LaunchedEffect(packId) {
         if (packId != null) snackbar.currentSnackbarData?.dismiss()
+    }
+    // A message belongs to the screen that raised it: leaving for another tab or Settings clears it.
+    LaunchedEffect(tab, settingsOpen) {
+        snackbar.currentSnackbarData?.dismiss()
     }
 
     BackHandler(enabled = settingsOpen) { settingsOpen = false }

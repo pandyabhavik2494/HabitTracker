@@ -32,6 +32,12 @@ object Coach {
         return (goals.steps * f).toInt()
     }
 
+    /** How far from the expected steps still counts as on pace: 5% of the goal, at least 500. */
+    fun paceMargin(goals: Goals): Int = maxOf(500, goals.steps / 20)
+
+    /** A no-break space: keeps a number on the line with the word before it. */
+    const val NBSP = '\u00A0'
+
     /** The line under the Seal. */
     fun sealLine(day: Day, goals: Goals, now: LocalDateTime, closed: Set<Habit>, nextPerfect: Int): String {
         val open = Habit.entries.filter { it !in closed }
@@ -39,8 +45,16 @@ object Coach {
             open.isEmpty() -> "Perfect Day #$nextPerfect"
             closed.isEmpty() -> "Perfect Day #$nextPerfect is up for grabs"
             open.size == 1 -> "${leftText(open.first(), day, goals, now)} away from a Perfect Day"
-            Habit.STEPS in open && day.steps >= expectedSteps(goals, now) -> "Ahead of pace"
-            Habit.STEPS in open && now.hour >= 9 -> "${n(expectedSteps(goals, now) - day.steps)} steps behind pace"
+            // Pace only means something once the day is under way: before 9 AM a few hundred steps
+            // would read as "ahead". Within a margin either side it's simply on pace.
+            Habit.STEPS in open && now.hour >= 9 -> {
+                val diff = day.steps - expectedSteps(goals, now)
+                when {
+                    diff >= paceMargin(goals) -> "Ahead of pace"
+                    diff > -paceMargin(goals) -> "On pace"
+                    else -> "${n(-diff)} steps behind pace"
+                }
+            }
             else -> "${open.size} to go"
         }
     }
@@ -70,7 +84,7 @@ object Coach {
             Habit.STEPS !in closed && now.hour < 17 -> {
                 val walk = 20
                 val by = (day.steps + walk * 100)
-                Move("A $walk-minute walk now puts you at ${n(by)}.", "Steps are the quarter that takes longest. Bank them early.")
+                Move("A $walk-minute walk now puts you at$NBSP${n(by)}.", "Steps are the quarter that takes longest. Bank them early.")
             }
             Habit.WEIGH !in closed -> Move("Weigh in: instant quarter.", "30 seconds on the scale closes it.")
             Habit.CALORIES !in closed && Rules.calorieState(day, goals, now) == CalorieState.UNDER ->

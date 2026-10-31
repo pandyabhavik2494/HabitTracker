@@ -15,7 +15,7 @@ Object.assign(BREEDS,{
   lion:{n:'Leo',b:'Lion',r:'Secret',c:{fur:'#D98A4A',fur2:'#F0AE7C',dark:'#C9822E',fluff:1,fluffC:'#9A5420',face:'wide',round:1,eyes:'#E0802F',muzzle:'#FFEEE2',nose:'#6B3A1E',crown:1}},
 });
 Object.assign(POSE,{
-  pickles:{pose:'proud',bg:['#E8F7C8','#A8D86A']},
+  pickles:{pose:'proud',bg:['#BFF0DC','#7FD8C0']},
   snowball:{pose:'loaf',bg:['#D8E8FF','#8AB4FF']},
   biscuit:{pose:'sit',bg:['#FFE9C4','#FFC06B']},
   pumpkin:{pose:'buddha',bg:['#FFE0CC','#FF9F7A']},

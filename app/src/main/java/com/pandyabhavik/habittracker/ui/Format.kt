@@ -61,23 +61,9 @@ object F {
     /** 10000 -> "10k", 12500 -> "12.5k". */
     fun compact(v: Int): String = if (v % 1000 == 0) "${v / 1000}k" else String.format(Locale.US, "%.1fk", v / 1000.0)
 
-    fun rarityColor(r: Rarity) = when (r) {
-        Rarity.COMMON -> C.ink
-        Rarity.UNCOMMON -> C.bath
-        Rarity.RARE -> C.flame
-        Rarity.HOLO -> C.weigh
-        Rarity.LEGENDARY -> C.swap
-        Rarity.SECRET -> C.steps
-    }
+    fun rarityColor(r: Rarity) = androidx.compose.ui.graphics.Color(r.argb)
 
-    fun rarityLine(r: Rarity) = when (r) {
-        Rarity.COMMON -> "Common"
-        Rarity.UNCOMMON -> "Uncommon"
-        Rarity.RARE -> "Rare · 1 in 10"
-        Rarity.HOLO -> "Holo · 1 in 20"
-        Rarity.LEGENDARY -> "Legendary"
-        Rarity.SECRET -> "Secret"
-    }
+    fun rarityLine(r: Rarity) = r.line
 
     fun minutesOfDay(m: Int): String {
         val h = m / 60

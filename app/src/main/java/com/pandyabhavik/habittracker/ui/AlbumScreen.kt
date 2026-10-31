@@ -5,13 +5,18 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -35,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -71,7 +77,8 @@ fun AlbumScreen(s: HomeState) {
         TopBar(
             s, showSettings = !a.wide,
             kicker = "Purrfect Days · Series 1",
-            title = "${s.owned.size} of ${Catalog.SIZE} cats · ${s.swaps} swap${if (s.swaps == 1) "" else "s"}",
+            // Swaps live in the pill beside it; the title stays one line.
+            title = "${s.owned.size} of ${Catalog.SIZE} cats",
         )
         s.unopened.firstOrNull()?.let { p ->
             Spacer(Modifier.height(6.dp))
@@ -90,7 +97,7 @@ fun AlbumScreen(s: HomeState) {
         // A real album: every cat has a fixed slot, so the gaps show what's still out there.
         val order = Catalog.all.sortedBy { orderOf(it.rarity) }
         order.chunked(columns).forEachIndexed { i, row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEachIndexed { j, cat -> Slot(cat, s, Modifier.weight(1f), (i * columns + j) * 0.37f) { open = cat.id } }
                 repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
             }
@@ -105,12 +112,18 @@ fun AlbumScreen(s: HomeState) {
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
-        Spacer(Modifier.height(24.dp))
-        // Clear of the navigation bar or taskbar, so the last row is never cut off.
-        Spacer(Modifier.navigationBarsPadding())
+        // Clear of the navigation bar or taskbar and the bottom bar, so the last row is never cut off.
+        val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        Spacer(Modifier.height(navBottom + (if (a.wide) 0.dp else BOTTOM_BAR_HEIGHT) + 24.dp))
     }
     open?.let { id -> StickerSheet(Catalog[id], s) { open = null } }
 }
+
+/** Height of the narrow layout's bottom tab bar (AppRoot's BottomBar). */
+private val BOTTOM_BAR_HEIGHT = 64.dp
+
+/** The rarity's one colour, from [Rarity.argb]: used by the album, sticker sheet, reveal and share card. */
+internal val Rarity.color: Color get() = Color(argb)
 
 private fun orderOf(r: Rarity) = when (r) {
     Rarity.COMMON -> 0
@@ -150,13 +163,10 @@ private fun Slot(cat: Cat, s: HomeState, modifier: Modifier, phase: Float, onOpe
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            when {
-                owned != null || hidden -> cat.name.takeIf { owned != null } ?: cat.breed
-                else -> "???"
-            },
-            style = T.label.copy(fontSize = 13.sp, color = if (owned != null) F.rarityColor(cat.rarity) else C.ink),
-            // Long breed names on locked slots ("Norwegian Forest") wrap rather than clip in 3 columns.
-            maxLines = 2,
+            // Locked cats never give their name or breed away: "???", then the rarity or how to unlock it.
+            if (owned != null) cat.name else "???",
+            style = T.label.copy(fontSize = 13.sp, color = if (owned != null) cat.rarity.color else C.ink),
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
@@ -213,41 +223,69 @@ private fun DashedSlot(size: Dp) {
 @Composable
 private fun Milestones(s: HomeState) {
     val next = Streaks.nextMilestone(s.streak)
-    val points = (Streaks.MILESTONES + s.streak).distinct().sorted().filter { it > 0 }
+    // Only real milestones are stops; today's streak is a marker placed proportionally between them.
+    val points = Streaks.MILESTONES
+    val frac = milestoneFraction(s.streak, points)
     Panel(Modifier.fillMaxWidth().testTag("milestones")) {
         Caps("Milestones", icon = Icons.Rounded.EmojiEvents)
-        Spacer(Modifier.height(14.dp))
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .drawBehind {
-                    val y = 15.dp.toPx()
-                    drawLine(C.s3, Offset(0f, y), Offset(size.width, y), strokeWidth = 3.dp.toPx())
-                    val idx = points.indexOf(s.streak).coerceAtLeast(0)
-                    val frac = if (points.size <= 1) 0f else idx.toFloat() / (points.size - 1)
-                    drawLine(C.ink, Offset(0f, y), Offset(size.width * frac, y), strokeWidth = 3.dp.toPx())
-                },
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            points.forEach { p ->
-                val current = p == s.streak
-                val done = p < s.streak || (current && p in Streaks.MILESTONES)
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    // Every dot sits in the same 30dp slot, so the bigger current dot doesn't push its label down.
-                    Box(Modifier.size(30.dp), contentAlignment = Alignment.Center) {
-                        Box(
-                            Modifier
-                                .size(if (current) 30.dp else 24.dp)
-                                .clip(CircleShape)
-                                .background(if (current) C.ink else if (done) C.ink else C.s2)
-                                .border(1.dp, if (done || current) C.ink else C.line, CircleShape),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (done && !current) Icon(Icons.Rounded.Check, null, tint = Color(0xFF0A0B10), modifier = Modifier.size(16.dp))
+        Spacer(Modifier.height(10.dp))
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val dot = 30.dp
+            // Stops sit at the centres of their 30dp slots, from dot/2 to width - dot/2.
+            val markerX = dot / 2 + (maxWidth - dot) * frac
+            val labelW = 64.dp
+            Column(Modifier.fillMaxWidth()) {
+                Text(
+                    "Day ${s.streak}",
+                    style = T.small.copy(color = C.ink, fontSize = 11.sp, fontFamily = Display),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .width(labelW)
+                        .offset(x = (markerX - labelW / 2).coerceIn(0.dp, (maxWidth - labelW).coerceAtLeast(0.dp)))
+                        .testTag("milestone-marker"),
+                )
+                Spacer(Modifier.height(2.dp))
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .drawBehind {
+                            val y = dot.toPx() / 2
+                            val x0 = dot.toPx() / 2
+                            val x1 = size.width - dot.toPx() / 2
+                            val x = x0 + (x1 - x0) * frac
+                            drawLine(C.s3, Offset(x0, y), Offset(x1, y), strokeWidth = 3.dp.toPx())
+                            drawLine(C.ink, Offset(x0, y), Offset(x, y), strokeWidth = 3.dp.toPx())
+                        }
+                        .drawWithContent {
+                            drawContent()
+                            // The marker draws over the stops, so it shows even when it sits on one.
+                            val y = dot.toPx() / 2
+                            val x = dot.toPx() / 2 + (size.width - dot.toPx()) * frac
+                            drawCircle(C.bg, radius = 9.dp.toPx(), center = Offset(x, y))
+                            drawCircle(C.ink, radius = 6.dp.toPx(), center = Offset(x, y))
+                        },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    points.forEach { p ->
+                        val done = p <= s.streak
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(Modifier.size(dot), contentAlignment = Alignment.Center) {
+                                Box(
+                                    Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(if (done) C.ink else C.s2)
+                                        .border(1.dp, if (done) C.ink else C.line, CircleShape),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (done) Icon(Icons.Rounded.Check, null, tint = Color(0xFF0A0B10), modifier = Modifier.size(16.dp))
+                                }
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Text("$p", style = T.small.copy(color = if (done) C.ink else C.mute, fontSize = 11.sp, fontFamily = Display))
                         }
                     }
-                    Spacer(Modifier.height(4.dp))
-                    Text("$p", style = T.small.copy(color = if (current) C.ink else C.mute, fontSize = 11.sp, fontFamily = Display))
                 }
             }
         }
@@ -257,6 +295,21 @@ private fun Milestones(s: HomeState) {
             style = T.body.copy(color = C.ink),
         )
     }
+}
+
+/**
+ * Where [streak] sits on a track whose [stops] are evenly spaced, 0..1: proportional within the gap
+ * between the two stops around it. Before the first stop it sits at the start of the track.
+ */
+private fun milestoneFraction(streak: Int, stops: List<Int>): Float {
+    if (stops.size < 2) return 0f
+    val gaps = (stops.size - 1).toFloat()
+    if (streak <= 0) return 0f
+    if (streak >= stops.last()) return 1f
+    val i = stops.indexOfLast { it <= streak }
+    if (i < 0) return 0f
+    val within = (streak - stops[i]).toFloat() / (stops[i + 1] - stops[i])
+    return (i + within) / gaps
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -269,7 +322,10 @@ private fun StickerSheet(cat: Cat, s: HomeState, onDismiss: () -> Unit) {
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = C.s1,
         contentColor = C.ink,
+        // Dark enough that the album's labels don't read through beside the sheet.
+        scrimColor = Color.Black.copy(alpha = 0.6f),
     ) {
+        LightSheetBars()
         Column(
             Modifier
                 .fillMaxWidth()
@@ -278,7 +334,7 @@ private fun StickerSheet(cat: Cat, s: HomeState, onDismiss: () -> Unit) {
                 .testTag("sticker-sheet"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(F.rarityLine(cat.rarity).uppercase(), style = T.caps.copy(color = F.rarityColor(cat.rarity), letterSpacing = 3.sp))
+            Text(cat.rarity.line.uppercase(), style = T.caps.copy(color = cat.rarity.color, letterSpacing = 3.sp))
             Spacer(Modifier.height(10.dp))
             StickerWithGlow(cat, 200.dp, 0f)
             Spacer(Modifier.height(12.dp))
@@ -308,7 +364,9 @@ private fun StickerSheet(cat: Cat, s: HomeState, onDismiss: () -> Unit) {
                         .weight(0.8f)
                         .height(50.dp)
                         .clip(CircleShape)
-                        .background(C.s2)
+                        // Outlined, like the Story button on the reveal.
+                        .background(C.ink.copy(alpha = 0.10f))
+                        .border(1.5.dp, C.ink.copy(alpha = 0.7f), CircleShape)
                         .clickable { Share.story(context, cat, s) },
                     contentAlignment = Alignment.Center,
                 ) { Text("Story", style = T.label) }

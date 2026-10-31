@@ -75,7 +75,7 @@ fun Onboarding(vm: MainViewModel, s: HomeState, askHealth: () -> Unit, askNotifi
                 verticalArrangement = Arrangement.Center,
             ) {
                 when (p) {
-                    0 -> Welcome { page = 1 }
+                    0 -> Welcome(screenHeight) { page = 1 }
                     1 -> Connect(vm, askHealth) { page = 2 }
                     2 -> Nudges(askNotifications) { page = 3 }
                     else -> FirstPledge(s) { vm.finishOnboarding() }
@@ -86,7 +86,10 @@ fun Onboarding(vm: MainViewModel, s: HomeState, askHealth: () -> Unit, askNotifi
 }
 
 @Composable
-private fun Welcome(next: () -> Unit) {
+private fun Welcome(screenHeight: androidx.compose.ui.unit.Dp, next: () -> Unit) {
+    // Short screens (the cover display) shrink the ring and the gaps so "Get started" fits without scrolling.
+    val compact = screenHeight < 760.dp
+    val ring = minOf(220.dp, screenHeight * 0.26f)
     var demo by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -95,22 +98,22 @@ private fun Welcome(next: () -> Unit) {
         }
     }
     val prog = Habit.entries.mapIndexed { i, h -> h to if (i < demo) 1f else 0f }.toMap()
-    Spacer(Modifier.height(24.dp))
-    Seal(prog, 220.dp) {
-        Text(if (demo >= 4) "✓" else "${demo.coerceAtMost(4)}/4", style = T.hero.copy(fontSize = 48.sp))
+    Spacer(Modifier.height(if (compact) 0.dp else 24.dp))
+    Seal(prog, ring) {
+        Text(if (demo >= 4) "✓" else "${demo.coerceAtMost(4)}/4", style = T.hero.copy(fontSize = if (compact) 40.sp else 48.sp))
     }
-    Spacer(Modifier.height(24.dp))
-    Text("Close all four.\nEvery day.", style = T.hero.copy(fontSize = 40.sp), textAlign = TextAlign.Center)
-    Spacer(Modifier.height(12.dp))
+    Spacer(Modifier.height(if (compact) 14.dp else 24.dp))
+    Text("Close all four.\nEvery day.", style = T.hero.copy(fontSize = if (compact) 32.sp else 40.sp), textAlign = TextAlign.Center)
+    Spacer(Modifier.height(if (compact) 8.dp else 12.dp))
     Text(
         "Each habit is a quarter of the Seal. Close all four for a Perfect Day, a sticker pack, and one more day on the streak.",
         style = T.body,
         textAlign = TextAlign.Center,
     )
-    Spacer(Modifier.height(20.dp))
+    Spacer(Modifier.height(if (compact) 12.dp else 20.dp))
     Habit.entries.forEach { h ->
-        Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-            HabitIcon(h, 34.dp)
+        Row(Modifier.fillMaxWidth().padding(vertical = if (compact) 3.dp else 5.dp), verticalAlignment = Alignment.CenterVertically) {
+            HabitIcon(h, if (compact) 30.dp else 34.dp)
             Spacer(Modifier.width(12.dp))
             Text(
                 when (h) {
@@ -123,7 +126,7 @@ private fun Welcome(next: () -> Unit) {
             )
         }
     }
-    Spacer(Modifier.height(24.dp))
+    Spacer(Modifier.height(if (compact) 16.dp else 24.dp))
     Primary("Get started", "onboarding-next") { next() }
 }
 

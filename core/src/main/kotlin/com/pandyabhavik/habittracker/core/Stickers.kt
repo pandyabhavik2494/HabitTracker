@@ -5,13 +5,21 @@ import java.time.LocalTime
 import java.time.YearMonth
 import kotlin.random.Random
 
-enum class Rarity(val label: String, val odds: String) {
-    COMMON("Common", "60%"),
-    UNCOMMON("Uncommon", "25%"),
-    RARE("Rare", "1 in 10"),
-    HOLO("Holo", "1 in 20"),
-    LEGENDARY("Legendary", "comebacks only"),
-    SECRET("Secret", "unlock only"),
+/**
+ * [argb] is the one colour each rarity is shown in everywhere (album, sticker sheet, reveal, share card):
+ * a grey-teal-blue-violet ladder for pack rarities, pink and coral for the special cats. Never yellow.
+ */
+enum class Rarity(val label: String, val odds: String, val argb: Long) {
+    COMMON("Common", "60%", 0xFFC9CED9),
+    UNCOMMON("Uncommon", "1 in 4", 0xFF5ED6C0),
+    RARE("Rare", "1 in 10", 0xFF6FA8FF),
+    HOLO("Holo", "1 in 20", 0xFFC49BFF),
+    LEGENDARY("Legendary", "comebacks only", 0xFFFF8FD0),
+    SECRET("Secret", "unlock only", 0xFFFF8A7A),
+    ;
+
+    /** "Rare · 1 in 10": every pack rarity with its odds, the special ones with how they're earned. */
+    val line: String get() = "$label · $odds"
 }
 
 data class Cat(
@@ -39,7 +47,7 @@ object Catalog {
         Cat("pumpkin", "Pumpkin", "Exotic Shorthair", Rarity.UNCOMMON, "Kitchen closed. Belly full."),
         Cat("thor", "Thor", "Maine Coon", Rarity.RARE, "Big cat. Bigger streak."),
         Cat("jaguar", "Jaguar", "Bengal", Rarity.RARE, "Pouncing on tomorrow."),
-        Cat("dobby", "Dobby", "Sphynx", Rarity.RARE, "Cold outside. Hot streak."),
+        Cat("dobby", "Dobby", "Devon Rex", Rarity.RARE, "Cold outside. Hot streak."),
         Cat("mochi", "Mochi", "Japanese Bobtail", Rarity.RARE, "Clean paws, clean streak."),
         Cat("midnight", "Midnight", "Black Cat", Rarity.HOLO, "Night walks hit different."),
         Cat("ghost", "Ghost", "Turkish Angora", Rarity.HOLO, "Dreaming in 10k steps."),
@@ -71,7 +79,8 @@ object Packs {
     /** Out of 100: Common 60, Uncommon 25, Rare 10, Holo 5. */
     val ODDS = listOf(Rarity.COMMON to 60, Rarity.UNCOMMON to 25, Rarity.RARE to 10, Rarity.HOLO to 5)
 
-    const val ODDS_TEXT = "Common 60% · Uncommon 25% · Rare 10% · Holo 5%"
+    /** The same odds each rarity shows on its own ([Rarity.odds]). */
+    const val ODDS_TEXT = "Common 60% · Uncommon 1 in 4 · Rare 1 in 10 · Holo 1 in 20"
 
     fun rollRarity(random: Random, atLeast: Rarity? = null): Rarity {
         val allowed = ODDS.filter { atLeast == null || it.first.ordinal >= atLeast.ordinal }

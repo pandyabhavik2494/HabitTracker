@@ -79,6 +79,12 @@ class ActionsTest {
 
     private fun sticker(id: String) = runBlocking { app.repo.dao.sticker(id) }
 
+    /** Scrolls the Weigh-in row (cover screen) or tile (inner screen) fully into view, so a shot shows it whole. */
+    private fun showWeighIn() {
+        app.scrollTo(if (app.wide) "tile-weigh" else "habit-weigh")
+        app.idle()
+    }
+
     /** Long-presses Bath: the row's long-press on the cover screen, the tile's on the inner screen. */
     private fun longPressBath() {
         if (app.wide) {
@@ -168,6 +174,7 @@ class ActionsTest {
         app.waitGone("sheet-calories")
         app.waitText("3/4")
         if (!app.wide) app.assertText("Kitchen closed · 1,180 kcal sealed")
+        showWeighIn()
         shot("46-kitchen-closed")
 
         app.openSheet(Habit.CALORIES)
@@ -245,7 +252,8 @@ class ActionsTest {
         app.node("reveal-badge").assertTextEquals("+1 SWAP")
         app.waitFor("the duplicate to count") { sticker(cat.id)?.count == before + 1 }
         assertEquals(TestData.SWAPS + 1, app.settings().swaps)
-        app.waitText("You have ${TestData.SWAPS + 1}.", substring = true)
+        // "You have 4." before the copy change, "You now have 4 swaps" after: match what both share.
+        app.waitText("have ${TestData.SWAPS + 1}", substring = true)
         shot("52-reveal-duplicate-swap")
 
         app.click("reveal-done")
@@ -325,6 +333,7 @@ class ActionsTest {
             app.assertText("9.5k steps")
             app.assertText("kitchen locks 8:15 PM", substring = true)
         }
+        showWeighIn()
         shot("57-today-new-goals")
     }
 
@@ -340,6 +349,7 @@ class ActionsTest {
         app.waitTag("today")
         app.waitText(" kg", substring = true)
         assertFalse(app.exists(app.hasShownText(" lb", substring = true)))
+        showWeighIn()
         shot("58-today-in-kg")
 
         app.openSheet(Habit.WEIGH)

@@ -24,6 +24,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pandyabhavik.habittracker.health.HealthGateway
@@ -37,6 +38,9 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -61,6 +65,7 @@ fun HabitSheet(habit: Habit, s: HomeState, onDismiss: () -> Unit) {
         sheetMaxWidth = 640.dp,
         modifier = Modifier.testTag("sheet-${habit.name.lowercase()}"),
     ) {
+        LightSheetBars()
         Column(
             Modifier
                 .fillMaxWidth()
@@ -82,6 +87,27 @@ fun HabitSheet(habit: Habit, s: HomeState, onDismiss: () -> Unit) {
                 Habit.WEIGH -> WeighSheet(s, onDismiss)
                 Habit.BATH -> BathSheet(s, onDismiss)
             }
+        }
+    }
+}
+
+/**
+ * Call first inside any ModalBottomSheet's content. The sheet lives in its own dialog window, which
+ * picks dark bar icons from the system theme; the app is always dark, so keep the clock and icons
+ * light. Also stops the sheet window from panning the screen behind it when the keyboard opens:
+ * the sheet pads itself for the IME through its content insets.
+ */
+@Composable
+fun LightSheetBars() {
+    val view = LocalView.current
+    SideEffect {
+        val window = (view as? DialogWindowProvider)?.window
+            ?: (view.parent as? DialogWindowProvider)?.window
+            ?: return@SideEffect
+        window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
         }
     }
 }
