@@ -133,13 +133,13 @@ private fun Card(
 
 /** Flame and streak; after 8 PM with something open, the countdown to midnight in red. */
 @Composable
-private fun FlameChip(s: HomeState, textSp: Float) {
+private fun FlameChip(s: HomeState, textSp: Float, countdown: Boolean = true) {
     val color = if (s.atRisk) C.risk else C.flame
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(R.drawable.ic_w_flame, color, (textSp + 1f).dp)
         Spacer(GlanceModifier.width(2.dp))
         Text(
-            if (s.atRisk) countdown(s) else s.streak.toString(),
+            if (s.atRisk && countdown) countdown(s) else s.streak.toString(),
             style = ts(color, textSp, FontWeight.Bold),
             maxLines = 1,
         )
@@ -289,7 +289,8 @@ internal fun ListView(context: Context, s: HomeState) {
         Column(modifier = GlanceModifier.fillMaxSize().padding(pad.dp)) {
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Today", modifier = GlanceModifier.defaultWeight(), style = ts(C.ink, 15f * k, FontWeight.Bold), maxLines = 1)
-                FlameChip(s, 13.5f * k)
+                // The streak, not the countdown: "2h 42m" would squeeze "Today" (the red border says at risk).
+                FlameChip(s, 13.5f * k, countdown = false)
             }
             for (h in Habit.entries) {
                 Spacer(GlanceModifier.defaultWeight())
@@ -479,7 +480,7 @@ internal fun LargeView(context: Context, s: HomeState) {
     val k = scale(328f, 328f)
     val pad = 18f * k
     val inner = dims.width.value - 2f - 2 * pad
-    val seal = minOf(124f * k, inner * 0.45f)
+    val seal = minOf(112f * k, inner * 0.42f)
     val gap = 14f * k
     val rowDp = inner - seal - gap
     val move = s.move
@@ -501,25 +502,31 @@ internal fun LargeView(context: Context, s: HomeState) {
                 Spacer(GlanceModifier.width((6f * k).dp))
                 Pill(R.drawable.ic_w_spark, s.swaps.toString(), C.swap, k)
             }
-            Spacer(GlanceModifier.height((10f * k).dp))
+            Spacer(GlanceModifier.height((6f * k).dp))
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 SealBlock(s, seal) { SealCenter(s, k, 28f * k, flame = false, caption = "closed") }
                 Spacer(GlanceModifier.width(gap.dp))
                 Column(modifier = GlanceModifier.defaultWeight()) {
                     Habit.entries.forEachIndexed { i, h ->
-                        if (i > 0) Spacer(GlanceModifier.height((10f * k).dp))
+                        if (i > 0) Spacer(GlanceModifier.height((7f * k).dp))
                         HabitRow(s, h, k, rowDp, valueDp = 80f * k)
                     }
                 }
             }
-            Spacer(GlanceModifier.height((8f * k).dp))
-            Text(s.sealLine, style = ts(if (s.perfect) C.flame else C.ink, 15f * k, FontWeight.Bold), maxLines = 1)
+            Spacer(GlanceModifier.height((6f * k).dp))
+            // Shorter than the app's line so it fits one line at the bigger widget text.
+            Text(
+                s.sealLine.replace(" away from a Perfect Day", " to a Perfect Day"),
+                style = ts(if (s.perfect) C.flame else C.ink, 14.5f * k, FontWeight.Bold),
+                maxLines = 1,
+            )
+            Spacer(GlanceModifier.height((6f * k).dp))
             Spacer(GlanceModifier.defaultWeight())
             Column(
                 modifier = GlanceModifier.fillMaxWidth()
                     .background(if (s.atRisk) C.risk.copy(alpha = 0.10f) else C.s2)
                     .cornerRadius((16f * k).dp)
-                    .padding(horizontal = (12f * k).dp, vertical = (9f * k).dp),
+                    .padding(horizontal = (12f * k).dp, vertical = (7f * k).dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(if (s.atRisk) R.drawable.ic_w_flame else R.drawable.ic_w_spark, cardColor, (14f * k).dp)
@@ -528,8 +535,8 @@ internal fun LargeView(context: Context, s: HomeState) {
                 }
                 Spacer(GlanceModifier.height((3f * k).dp))
                 Text(
-                    balanced(context, cardBody, inner - 24f * k, 14.5f * k),
-                    style = ts(C.ink, 14.5f * k, FontWeight.Medium),
+                    balanced(context, cardBody, inner - 24f * k, 14f * k),
+                    style = ts(C.ink, 14f * k, FontWeight.Medium),
                     maxLines = 2,
                 )
             }

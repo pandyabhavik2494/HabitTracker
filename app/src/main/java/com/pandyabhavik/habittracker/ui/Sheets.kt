@@ -156,7 +156,7 @@ private fun MealsSheet(s: HomeState, close: () -> Unit) {
             a.vm.logMeals()
             close()
         }
-        Text("Shortcut: tap the check on the Meals row on Today, or use the button on the evening nudge.", style = T.small)
+        Text("Shortcut: tap Yes on Today, or Meals logged on the evening nudge.", style = T.small)
     } else {
         Text("Meals logged at ${F.time(at, s.zone)}.", style = T.h2)
         val opened = s.packs.any { it.date == d.date.toString() && it.openedAt != null }
