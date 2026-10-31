@@ -450,7 +450,10 @@ class ActionsTest {
         app.open(Scene.MIDDAY)
         app.waitTag("today")
         assertNull(app.settings().lastSyncError)
-        app.node("today").performTouchInput { swipeDown() }
+        // Pull from inside the content (the top bar itself doesn't scroll, so it starts no pull).
+        app.node("today").performTouchInput {
+            swipeDown(startY = height * 0.3f, endY = height * 0.95f, durationMillis = 400)
+        }
         // There's no Health Connect access on the emulator, so the sync it starts ends in an error.
         app.waitFor("a pull-down to sync", 20_000) { app.settings().lastSyncError != null }
         app.waitFor("the sync to finish", 20_000) { !app.repo.syncing.value }

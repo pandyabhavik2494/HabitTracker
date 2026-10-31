@@ -119,7 +119,8 @@ class ScreensTest {
         app.waitTag("next-move")
         app.node("pledge-card").assertDoesNotExist()
         shot("08-today-midday")
-        app.assertText("pull down to sync", substring = true)
+        // The emulator has no Health Connect access, so the line shows that and how to fix it.
+        app.waitTag("sync-line")
         // The cover screen scrolls down to its habit rows and sync line. The inner screen's two panes may
         // fit whole; then there's nothing new to show and the shot is left out.
         if (scrolledDown("today", to = "sync-line")) shot("09-today-midday-scrolled")
