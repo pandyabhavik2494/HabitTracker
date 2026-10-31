@@ -168,7 +168,14 @@ object TestData {
                             appContext: Context,
                             workerClassName: String,
                             workerParameters: WorkerParameters,
-                        ): ListenableWorker = NoopWorker(appContext, workerParameters)
+                        ): ListenableWorker? =
+                            // Only the app's own sync, nudge and tick jobs are silenced. Glance runs every
+                            // widget session as a WorkManager job, so those must run for real.
+                            if (workerClassName.startsWith("com.pandyabhavik.habittracker.")) {
+                                NoopWorker(appContext, workerParameters)
+                            } else {
+                                null
+                            }
                     },
                 )
                 .build()
