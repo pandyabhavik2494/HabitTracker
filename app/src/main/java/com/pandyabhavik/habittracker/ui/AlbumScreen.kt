@@ -234,6 +234,7 @@ private fun Milestones(s: HomeState) {
             // Stops sit at the centres of their 30dp slots, from dot/2 to width - dot/2.
             val markerX = dot / 2 + (maxWidth - dot) * frac
             val labelW = 64.dp
+            val maxX = (maxWidth - labelW).coerceAtLeast(0.dp)
             Column(Modifier.fillMaxWidth()) {
                 Text(
                     "Day ${s.streak}",
@@ -242,7 +243,7 @@ private fun Milestones(s: HomeState) {
                     maxLines = 1,
                     modifier = Modifier
                         .width(labelW)
-                        .offset(x = (markerX - labelW / 2).coerceIn(0.dp, (maxWidth - labelW).coerceAtLeast(0.dp)))
+                        .offset(x = (markerX - labelW / 2).coerceIn(0.dp, maxX))
                         .testTag("milestone-marker"),
                 )
                 Spacer(Modifier.height(2.dp))
