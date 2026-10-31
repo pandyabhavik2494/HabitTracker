@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_seal">Seal</string>
+    <string name="widget_seal_desc">Today\'s Seal: how many of the four are closed, and your streak.</string>
+    <string name="widget_list">Today</string>
+    <string name="widget_list_desc">The four habits with a progress bar each.</string>
+    <string name="widget_streak">Streak</string>
+    <string name="widget_streak_desc">Your streak, with a countdown to midnight when it\'s at risk.</string>
+    <string name="widget_bath">Bath</string>
+    <string name="widget_bath_desc">Tap, then press and hold to log today\'s bath.</string>
+    <string name="widget_strip">Strip</string>
+    <string name="widget_strip_desc">Four small rings and your streak in one row.</string>
+    <string name="widget_wide">Seal and habits</string>
+    <string name="widget_wide_desc">The Seal with each habit\'s progress and what\'s left.</string>
+    <string name="widget_large">Dashboard</string>
+    <string name="widget_large_desc">The Seal, every habit, your streak and the best next move.</string>
+</resources>

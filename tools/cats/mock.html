@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Habit Tracker UX mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=ac_unit,auto_awesome,bathtub,bolt,calendar_month,check,chevron_right,diamond,directions_walk,emoji_events,history,insights,local_fire_department,lock,monitor_weight,notifications,restaurant,schedule,settings,shield,sync,timer,today,touch_app,trending_down,wb_sunny&display=block" rel="stylesheet">
+<style>
+:root{
+  /* One visual world: OLED black, four habit colours that join into one rainbow ring on a Perfect Day.
+     Layout idea: a long scroll of real-size Fold 8 frames, cover screen first, then inner screen. */
+  --bg:#050608; --s1:#0D0F14; --s2:#151820; --s3:#1D212C; --line:#252A37;
+  --ink:#F3F4F8; --mute:#8D93A6; --dim:#5A6072;
+  --st:#3BE38F; --ca:#FF8A3D; --wt:#A98BFF; --ba:#43D3EA;
+  --gd:#F3F4F8; --gd2:#FFFFFF; --fl:#FF6B57; --rd:#FF5A6A; --ch:#7FC8FF;
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --body:Figtree,ui-sans-serif,system-ui,-apple-system,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);-webkit-font-smoothing:antialiased}
+.ms{text-transform:none;letter-spacing:normal;font-family:'Material Symbols Rounded';font-weight:normal;font-style:normal;font-size:20px;line-height:1;display:inline-block;white-space:nowrap;-webkit-font-feature-settings:'liga';font-feature-settings:'liga';font-variation-settings:'FILL' 1,'wght' 500,'opsz' 24;vertical-align:middle;user-select:none}
+.num{font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+a{color:var(--gd)}
+:focus-visible{outline:2px solid var(--gd);outline-offset:3px}
+
+/* ---------- page chrome ---------- */
+.page{max-width:1500px;margin:0 auto;padding:0 18px 90px}
+.hero{padding:42px 0 14px;max-width:820px}
+.eyebrow{font:600 12px var(--body);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.hero h1{font-size:clamp(34px,6vw,54px);font-weight:800;line-height:1.02;margin:10px 0 14px;letter-spacing:-.02em}
+.hero h1 em{font-style:normal;background:linear-gradient(90deg,var(--st),var(--ca) 35%,var(--wt) 65%,var(--ba));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:#BFC4D3;margin:0 0 10px;max-width:68ch}
+.toc{position:sticky;top:0;z-index:30;display:flex;gap:8px;overflow-x:auto;padding:12px 18px;margin:0 -18px;background:rgba(5,6,8,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line);scrollbar-width:none}
+.toc::-webkit-scrollbar{display:none}
+.toc a{flex:none;text-decoration:none;color:var(--ink);font:500 13px var(--body);border:1px solid var(--line);border-radius:999px;padding:7px 14px;background:var(--s1)}
+.toc a.cta{background:linear-gradient(90deg,#3BE38F,#43D3EA,#A98BFF,#FF8A3D);color:#07080b;border-color:transparent;font-weight:700}
+section.sec{padding-top:48px}
+.sec-head{display:flex;flex-direction:column;gap:6px;margin-bottom:20px;max-width:760px}
+.sec-head h2{font-size:30px;font-weight:700;letter-spacing:-.01em}
+.sec-head p{margin:0;color:#BFC4D3}
+.row{display:flex;gap:26px;overflow-x:auto;padding:4px 2px 18px;scroll-snap-type:x mandatory;scrollbar-width:thin}
+.shot{flex:none;scroll-snap-align:start;display:flex;flex-direction:column;gap:12px;width:360px}
+.cap{font-size:13.5px;color:#BFC4D3;max-width:360px}
+.cap b{color:var(--ink);font-weight:600}
+.cap .tag{display:inline-block;font:700 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--gd);margin-right:6px}
+.scaler{position:relative;width:100%}
+.scaler>.dev{position:absolute;top:0;left:0;transform-origin:0 0}
+.stack{display:flex;flex-direction:column;gap:40px}
+
+/* ---------- device frames ---------- */
+.dev{background:#000;border:7px solid #1B1D24;border-radius:36px;overflow:hidden;position:relative;box-shadow:0 30px 70px -30px rgba(0,0,0,.9),0 0 0 1px #2A2E39}
+.dev.cover{width:360px;height:800px}
+.dev.inner{width:760px;height:820px;border-radius:30px}
+.app{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--bg);overflow:hidden}
+.sb{display:flex;justify-content:space-between;align-items:center;padding:12px 22px 4px;font:600 13px var(--body);color:var(--ink);flex:none}
+.sb .r{display:flex;gap:6px;align-items:center;color:var(--mute);font-size:12px}
+.cam{position:absolute;top:10px;left:50%;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:#111;box-shadow:0 0 0 2px #050505;z-index:5}
+
+/* ---------- app components ---------- */
+.top{display:flex;align-items:center;justify-content:space-between;padding:6px 18px 0;flex:none}
+.top .date{font:600 13px var(--body);color:var(--mute)}
+.top .date b{display:block;font:700 22px/1.1 var(--display);color:var(--ink);letter-spacing:-.01em}
+.pills{display:flex;gap:6px}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:999px;background:var(--s2);font:700 13px var(--body)}
+.pill.fire{color:var(--fl);background:rgba(255,107,87,.14)}
+.pill.ice{color:#FF8FD0;background:rgba(255,143,208,.13)}
+.pill .ms{font-size:17px}
+.sealbox{position:relative;display:grid;place-items:center;flex:none}
+.sealbox .mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none}
+.mid .big{font:800 54px/1 var(--display);letter-spacing:-.03em}
+.mid .big small{font-size:26px;color:var(--dim);font-weight:700}
+.mid .lbl{font:600 12px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-top:6px}
+.mid .hint{font:500 12px var(--body);color:var(--mute);margin-top:4px;max-width:150px}
+.habits{display:flex;flex-direction:column;gap:8px;padding:0 14px}
+.h{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border-radius:18px;background:var(--s1);border:1px solid var(--line)}
+.h .ic{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;color:#000}
+.h .t{font:600 14px/1.2 var(--body)}
+.h .s{font:500 12px/1.3 var(--body);color:var(--mute);margin-top:2px}
+.h .v{font:700 14px var(--body);text-align:right}
+.h .v small{display:block;font:500 11px var(--body);color:var(--mute)}
+.h.done{background:linear-gradient(90deg,rgba(255,255,255,.035),transparent)}
+.h .bar{height:4px;border-radius:4px;background:var(--s3);margin-top:7px;overflow:hidden}
+.h .bar i{display:block;height:100%;border-radius:4px}
+.chk{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;color:#000}
+.chk .ms{font-size:17px;font-variation-settings:'FILL' 1,'wght' 700,'opsz' 20}
+.card{margin:0 14px;padding:14px;border-radius:20px;background:var(--s1);border:1px solid var(--line)}
+.card .k{font:700 11px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--mute);display:flex;align-items:center;gap:6px}
+.card .k .ms{font-size:15px}
+.card h3{font-size:19px;font-weight:700;line-height:1.2;margin:6px 0 4px;letter-spacing:-.01em}
+.card p{margin:0;color:#BFC4D3;font-size:13px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;height:46px;border-radius:999px;font:700 15px var(--body);border:0;cursor:pointer;color:#000;background:var(--ink);width:100%;margin-top:12px}
+.btn.ghost{background:var(--s2);color:var(--ink)}
+.risk{border-color:rgba(255,90,106,.45);background:radial-gradient(120% 140% at 0% 0%,rgba(255,90,106,.16),transparent 60%),var(--s1)}
+.risk .k{color:var(--rd)}
+.cd{font:800 30px/1 var(--display);letter-spacing:-.02em;color:var(--rd)}
+.nav{margin-top:auto;display:flex;justify-content:space-around;padding:8px 10px 14px;border-top:1px solid var(--line);background:rgba(13,15,20,.9);flex:none}
+.nav div{display:flex;flex-direction:column;align-items:center;gap:2px;font:600 11px var(--body);color:var(--dim)}
+.nav div.on{color:var(--ink)}
+.nav .ms{font-size:22px}
+.gap{height:12px;flex:none}
+.sp{flex:1}
+
+/* week strip */
+.week{display:flex;justify-content:space-between;padding:0 18px}
+.wd{display:flex;flex-direction:column;align-items:center;gap:4px;font:600 11px var(--body);color:var(--mute)}
+.wd.today{color:var(--ink)}
+
+/* pledge hold */
+.hold{position:relative;height:54px;border-radius:999px;background:var(--s2);margin-top:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:8px;font:700 15px var(--body);cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;border:1px solid var(--line);width:100%;color:var(--ink)}
+.hold i{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,rgba(67,211,234,.25),rgba(169,139,255,.55))}
+.hold span{position:relative}
+
+/* reveal */
+.reveal{position:absolute;inset:0;background:radial-gradient(80% 60% at 50% 38%,rgba(150,120,255,.25),transparent 70%),#000;display:flex;flex-direction:column;align-items:center;padding:30px 22px 22px;text-align:center}
+.reveal .pd{font:700 12px var(--body);letter-spacing:.2em;text-transform:uppercase;color:var(--gd)}
+.reveal h2{font-size:40px;font-weight:800;letter-spacing:-.02em;margin:4px 0 2px}
+.reveal .sub{color:#BFC4D3;font-size:14px}
+.loot{margin-top:14px;width:100%;border-radius:22px;padding:14px;display:flex;gap:14px;align-items:center;text-align:left;background:linear-gradient(135deg,#1a1626,#0e0d14);border:1px solid #3a3150}
+.loot .r{font:700 11px var(--body);letter-spacing:.12em;text-transform:uppercase}
+.loot b{display:block;font:700 18px/1.2 var(--display)}
+.loot small{color:var(--mute);font-size:12px}
+.strk{display:flex;align-items:center;gap:10px;margin-top:14px;font:800 44px/1 var(--display);color:var(--ink)}
+.strk .ms{color:var(--fl)}
+.strk s{color:var(--dim);font-size:26px;text-decoration:line-through}
+.spark{position:absolute;width:6px;height:6px;border-radius:2px;opacity:.9}
+
+/* calendar */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:0 16px}
+.cal .dh{font:600 10px var(--body);color:var(--dim);text-align:center}
+.cal .c{aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font:600 11px var(--body);color:var(--mute);background:var(--s1)}
+.cal .c.p{background:linear-gradient(135deg,#3BE38F,#43D3EA 35%,#A98BFF 70%,#FF8A3D);color:#07080b;box-shadow:0 0 8px rgba(150,140,255,.35)}
+.cal .c.f{background:transparent;border:1.5px dashed #FF8FD0;color:#FF8FD0}
+.cal .c.m{background:transparent;border:1.5px solid #3A2026;color:#7d4652}
+.cal .c.t{outline:2px solid var(--ink);outline-offset:2px}
+.cal .c.n{background:transparent;color:#2c3040}
+
+/* matrix */
+.mx{display:grid;grid-template-columns:70px repeat(7,1fr);gap:5px 6px;align-items:center;padding:0 16px;font:600 11px var(--body);color:var(--mute)}
+.mx i{display:block;height:12px;border-radius:4px;background:var(--s2)}
+
+/* inner layout */
+.two{display:grid;grid-template-columns:330px 1fr;gap:18px;padding:8px 22px 0;flex:1;min-height:0}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start}
+.tile{border-radius:22px;background:var(--s1);border:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:6px;min-height:0}
+.tile .hd{display:flex;align-items:center;gap:8px;font:600 13px var(--body)}
+.tile .hd .ic{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;color:#000}
+.tile .hd .ic .ms{font-size:18px}
+.tile .val{white-space:nowrap;font:800 27px/1 var(--display);letter-spacing:-.02em;margin-top:4px}
+.tile .val small{font-size:15px;color:var(--mute);font-weight:600}
+.tile .note{font-size:12px;color:var(--mute)}
+.rail{display:flex;flex-direction:column;align-items:center;gap:18px;padding:18px 0;width:72px;border-right:1px solid var(--line);flex:none}
+.rail div{display:flex;flex-direction:column;align-items:center;gap:3px;font:600 10px var(--body);color:var(--dim)}
+.rail div.on{color:var(--ink)}
+.rail div.on .ms{background:var(--s3);border-radius:14px;padding:6px 14px}
+.innerwrap{display:flex;flex:1;min-height:0}
+.innermain{flex:1;display:flex;flex-direction:column;min-width:0}
+
+/* notifications / widgets */
+.notif{width:340px;border-radius:22px;background:#1A1C22;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;border:1px solid #2A2E39}
+.notif .ap{width:30px;height:30px;border-radius:9px;background:#000;display:grid;place-items:center;flex:none}
+.notif .who{font:600 12px var(--body);color:var(--mute)}
+.notif b{display:block;font:700 14px/1.3 var(--body);margin:2px 0}
+.notif p{margin:0;font-size:13px;color:#C9CDD8}
+.wid{border-radius:28px;background:#0B0C10;border:1px solid #2A2E39;padding:14px;display:flex;gap:14px;align-items:center}
+
+/* widgets */
+.home{background:radial-gradient(120% 60% at 15% 0%,#1b2240 0%,#0a0c14 55%,#050608 100%)!important}
+.w{border-radius:26px;background:rgba(13,15,20,.94);border:1px solid rgba(255,255,255,.07);position:relative;overflow:hidden}
+.w .wl{font:600 11px var(--body);color:var(--mute)}
+.wr{display:flex;align-items:center;gap:8px;font:600 12px var(--body)}
+.wr .ms{font-size:16px}
+.wr .b{flex:1;height:5px;border-radius:5px;background:#1d212c;overflow:hidden}
+.wr .b i{display:block;height:100%;border-radius:5px}
+.wr .v{font:600 11px var(--body);color:var(--mute);min-width:44px;text-align:right}
+.hg{position:absolute;left:0;right:0;top:44px;bottom:0;padding:16px}
+.clock{font:700 62px/1 var(--display);letter-spacing:-.03em}
+.dock{position:absolute;left:0;right:0;bottom:26px;display:flex;justify-content:center;gap:22px}
+.dock i{width:46px;height:46px;border-radius:15px;background:rgba(255,255,255,.08);display:block}
+
+/* stickers */
+.stk{flex:none;filter:drop-shadow(0 6px 8px rgba(0,0,0,.55))}
+.sil *{fill:var(--sf,#fff)!important;stroke:var(--sf,#fff)!important;stroke-width:10px!important;stroke-linejoin:round!important;opacity:1!important}
+.sil defs *{stroke:none!important}
+.round{border-radius:50%}
+.round .bob{animation:bob 3.4s ease-in-out infinite;animation-delay:var(--d);transform-box:fill-box;transform-origin:50% 90%}
+.round .eyes{animation:blink 4.8s infinite;animation-delay:var(--d);transform-box:fill-box;transform-origin:50% 50%}
+.round .earR{animation:twitch 5.5s infinite;animation-delay:var(--d);transform-box:fill-box;transform-origin:30% 100%}
+.round .whisk{animation:whisk 2.6s ease-in-out infinite;animation-delay:var(--d);transform-box:fill-box;transform-origin:50% 50%}
+.round .tail{animation:tail 2.2s ease-in-out infinite;animation-delay:var(--d);transform-box:view-box}
+.round .breathe{animation:breathe 3s ease-in-out infinite;transform-box:view-box;transform-origin:50px 93px}
+.round .lick{animation:lick 1.1s ease-in-out infinite;transform-box:view-box}
+.round .wave{animation:wave .9s ease-in-out infinite;transform-box:view-box}
+.round .zz{animation:zz 2.6s ease-in-out infinite}
+.round .peek{animation:peek 3.2s ease-in-out infinite;animation-delay:var(--d)}
+.round .wig{animation:wig .5s ease-in-out infinite;transform-box:view-box}
+.round .sway{animation:sway 3s ease-in-out infinite;transform-box:view-box}
+.round .shiver{animation:shiver .25s linear infinite}
+.round .tw{animation:tw 1.6s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+@keyframes blink{0%,88%,100%{transform:scaleY(1)}91%{transform:scaleY(.08)}94%{transform:scaleY(1)}}
+@keyframes twitch{0%,78%,100%{transform:rotate(0)}81%{transform:rotate(14deg)}84%{transform:rotate(-6deg)}87%{transform:rotate(0)}}
+@keyframes whisk{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.08)}}
+@keyframes tail{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(10deg)}}
+@keyframes breathe{0%,100%{transform:scale(1,1)}50%{transform:scale(1.015,1.035)}}
+@keyframes lick{0%,100%{transform:rotate(0)}50%{transform:rotate(-14deg) translateY(-2px)}}
+@keyframes wave{0%,100%{transform:rotate(-16deg)}50%{transform:rotate(14deg)}}
+@keyframes zz{0%{opacity:0;transform:translateY(6px)}30%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}
+@keyframes peek{0%,100%{transform:translateY(4px)}40%,70%{transform:translateY(-3px)}}
+@keyframes wig{0%,100%{transform:translateX(-1.6px) rotate(-2deg)}50%{transform:translateX(1.6px) rotate(2deg)}}
+@keyframes sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+@keyframes shiver{0%,100%{transform:translateX(0)}25%{transform:translateX(-.5px)}75%{transform:translateX(.5px)}}
+@keyframes tw{0%,100%{opacity:1}50%{opacity:.25}}
+.sil text{display:none}
+.stk.holo{animation:holo 3s linear infinite}
+.stk.round{filter:drop-shadow(0 6px 10px rgba(0,0,0,.55))}
+@keyframes holo{0%{filter:drop-shadow(0 6px 8px rgba(0,0,0,.55)) drop-shadow(0 0 10px #ff9ad5)}33%{filter:drop-shadow(0 6px 8px rgba(0,0,0,.55)) drop-shadow(0 0 10px #9be7ff)}66%{filter:drop-shadow(0 6px 8px rgba(0,0,0,.55)) drop-shadow(0 0 10px #c6a8ff)}100%{filter:drop-shadow(0 6px 8px rgba(0,0,0,.55)) drop-shadow(0 0 10px #ff9ad5)}}
+/* pack opening */
+.pack{position:relative;width:190px;height:260px;border-radius:20px;background:linear-gradient(135deg,#3BE38F,#43D3EA 30%,#A98BFF 60%,#FF8A3D 90%);background-size:300% 300%;animation:foil 3s linear infinite,shake 1.6s ease-in-out infinite;box-shadow:0 0 40px rgba(150,140,255,.45),inset 0 0 0 2px rgba(255,255,255,.4);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#07080b;cursor:pointer;overflow:hidden}
+.pack::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(115deg,rgba(255,255,255,.0) 0 18px,rgba(255,255,255,.28) 18px 22px)}
+.pack .zig{position:absolute;top:22px;left:0;right:0;height:10px;background:radial-gradient(circle at 5px -2px,transparent 6px,rgba(0,0,0,.25) 6.5px) 0 0/10px 10px repeat-x}
+.pack b{position:relative;font:800 22px/1 var(--display);letter-spacing:-.02em;text-align:center}
+.pack small{position:relative;font:700 10px var(--body);letter-spacing:.18em;text-transform:uppercase;margin-top:8px}
+.pack .q{position:relative;font:800 64px/1 var(--display);margin:10px 0 4px;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.2)}
+.pack.rip{animation:rip .5s cubic-bezier(.5,0,.75,0) forwards}
+@keyframes foil{0%{background-position:0% 50%}100%{background-position:300% 50%}}
+@keyframes shake{0%,70%,100%{transform:rotate(0)}75%{transform:rotate(-4deg)}80%{transform:rotate(4deg)}85%{transform:rotate(-3deg)}90%{transform:rotate(2deg)}}
+@keyframes rip{to{transform:translateY(-60px) rotate(-14deg) scale(1.15);opacity:0;filter:brightness(3)}}
+.rays{position:absolute;left:50%;width:560px;height:560px;margin-left:-280px;border-radius:50%;background:repeating-conic-gradient(from 0deg,var(--rc) 0 7deg,transparent 7deg 18deg);-webkit-mask:radial-gradient(circle,#000 8%,transparent 62%);mask:radial-gradient(circle,#000 8%,transparent 62%);opacity:.35;animation:spin 14s linear infinite;pointer-events:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;animation:flash .6s ease-out;pointer-events:none}
+@keyframes flash{0%{opacity:.9}100%{opacity:0}}
+.drop{animation:drop .9s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes drop{0%{transform:scale(.1) rotate(-40deg);opacity:0}100%{transform:scale(1) rotate(-6deg);opacity:1}}
+.newb{position:absolute;top:-6px;right:-14px;background:#FF8FD0;color:#2a0b1d;font:800 13px var(--display);padding:6px 10px;border-radius:999px;transform:rotate(12deg);box-shadow:0 0 16px rgba(255,143,208,.7);animation:pop .5s .7s both}
+.rar{font:800 12px var(--body);letter-spacing:.2em;text-transform:uppercase}
+
+/* playbook + tables */
+.grid3{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.pb{border-radius:20px;background:var(--s1);border:1px solid var(--line);padding:16px 18px}
+.pb .n{font:700 11px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--gd)}
+.pb h3{font-size:19px;margin:6px 0 6px;font-weight:700}
+.pb p{margin:0 0 6px;color:#BFC4D3;font-size:14px}
+.pb .where{font-size:12.5px;color:var(--mute)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:18px}
+table{border-collapse:collapse;width:100%;min-width:720px;font-size:14px}
+th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:700 11px var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--mute);background:var(--s1)}
+tr:last-child td{border-bottom:0}
+td b{font-weight:600}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:1px}
+.q{border-radius:20px;background:var(--s1);border:1px solid var(--line);padding:16px 18px}
+.q h3{font-size:17px;margin-bottom:6px}
+.q p{margin:0;color:#BFC4D3;font-size:14px}
+.q .rec{margin-top:8px;font-size:13.5px;color:var(--gd)}
+
+/* play area */
+.play{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+.ctl{display:flex;flex-direction:column;gap:10px;max-width:380px;flex:1;min-width:260px}
+.ctl h3{font-size:20px}
+.ctl p{margin:0;color:#BFC4D3;font-size:14px}
+.cb{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:16px;background:var(--s1);border:1px solid var(--line);color:var(--ink);font:600 14px var(--body);cursor:pointer;text-align:left}
+.cb:hover{background:var(--s2)}
+.cb .ms{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;color:#000;font-size:18px}
+.cb.reset{justify-content:center;background:transparent}
+
+.arcp{transition:stroke-dasharray .9s cubic-bezier(.2,.8,.2,1)}
+@keyframes pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.06);opacity:1}100%{transform:scale(1)}}
+@keyframes fall{to{transform:translateY(820px) rotate(540deg);opacity:0}}
+@keyframes glow{0%,100%{filter:drop-shadow(0 0 8px rgba(160,150,255,.5))}50%{filter:drop-shadow(0 0 22px rgba(120,220,255,.85))}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+.goldseal{animation:glow 2.4s ease-in-out infinite}
+.risk .cd{animation:pulse 2s ease-in-out infinite}
+.popin{animation:pop .7s cubic-bezier(.2,.8,.2,1) both}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:420px){.page{padding:0 16px 80px}.shot{width:100%}.row{gap:18px}}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="hero">
+    <div class="eyebrow">Habit Tracker · UX mock for approval · Galaxy Z Fold 8</div>
+    <h1>Close all four. <em>Every single day.</em></h1>
+    <p>Four habits, one circle. Each habit is a quarter of the Seal: steps, calories, weigh-in and bath. Three of them fill themselves from Health Connect; the bath is one long press. When all four quarters close, the circle lights up in all four colours, the day becomes a Perfect Day, and you rip open a sticker pack. Every new sticker is a new animated cat breed for your album.</p>
+    <p>Below: a playable cover screen, the full set of cover and inner screen states across one day, the psychology behind each one, and four decisions I need from you. Nothing here is built yet. Approve or send changes, then I build it.</p>
+  </header>
+  <nav class="toc" aria-label="Sections">
+    <a class="cta" href="#play">Try it</a>
+    <a href="#cover">Cover screen</a>
+    <a href="#inner">Inner screen</a>
+    <a href="#widgets">Widgets</a>
+    <a href="#nudges">Notifications</a>
+    <a href="#psych">The psychology</a>
+    <a href="#data">Where data comes from</a>
+    <a href="#decide">Your calls</a>
+  </nav>
+
+  <section class="sec" id="play">
+    <div class="sec-head">
+      <div class="eyebrow">Interactive</div>
+      <h2>Play one day</h2>
+      <p>Feed it data with the buttons (that's what Health Connect does for real). Long-press the bath row on the phone. Close all four to see the reward.</p>
+    </div>
+    <div class="play">
+      <div class="shot"><div class="scaler" data-w="360" data-h="800"><div class="dev cover" id="live"></div></div></div>
+      <div class="ctl">
+        <h3>Simulate the day</h3>
+        <p>Calories close when you tap Close kitchen (or automatically at 8:30 PM) while you're at or under 1,500 kcal.</p>
+        <button class="cb" id="b-steps"><span class="ms" style="background:var(--st)">directions_walk</span>Walk: +1,800 steps</button>
+        <button class="cb" id="b-meal"><span class="ms" style="background:var(--ca)">restaurant</span>MyFitnessPal logs a meal: +420 kcal</button>
+        <button class="cb" id="b-kitchen"><span class="ms" style="background:var(--ca)">lock</span>Close kitchen for today</button>
+        <button class="cb" id="b-weigh"><span class="ms" style="background:var(--wt)">monitor_weight</span>Scale syncs a weigh-in</button>
+        <button class="cb" id="b-bath"><span class="ms" style="background:var(--ba)">bathtub</span>Bath (or long-press it on the phone)</button>
+        <button class="cb reset" id="b-reset">Reset the day</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="cover">
+    <div class="sec-head">
+      <div class="eyebrow">Cover screen · 6.5 in · one-handed</div>
+      <h2>One day on the cover screen</h2>
+      <p>The cover screen is for glancing and acting in two seconds: where am I, what's the one thing left, do it. Scroll sideways.</p>
+    </div>
+    <div class="row" id="coverRow"></div>
+  </section>
+
+  <section class="sec" id="inner">
+    <div class="sec-head">
+      <div class="eyebrow">Inner screen · 8 in · unfolded</div>
+      <h2>The inner screen is the war room</h2>
+      <p>Same Seal, more depth: every habit gets a tile with its own story, plus history, patterns and your cat sticker album. Navigation moves to a side rail.</p>
+    </div>
+    <div class="stack" id="innerStack"></div>
+  </section>
+
+  <section class="sec" id="widgets">
+    <div class="sec-head">
+      <div class="eyebrow">Home screen · both screens</div>
+      <h2>Widgets</h2>
+      <p>Seven widgets so the Seal stares back at you every time you look at your phone. They change with the day: colour filling in through the day, red with a live countdown after 8 PM, and a glowing rainbow Seal once it's a Perfect Day. Bath logs straight from its widget with a long-press; tapping any other widget opens that habit.</p>
+    </div>
+    <div class="row" id="widgetRow"></div>
+    <div class="stack" id="widgetInner" style="margin-top:30px"></div>
+  </section>
+
+  <section class="sec" id="nudges">
+    <div class="sec-head">
+      <div class="eyebrow">Outside the app</div>
+      <h2>Notifications</h2>
+      <p>At most four notifications a day, each one specific and timed to when you can still act, and none once the day is closed.</p>
+    </div>
+    <div class="row" id="nudgeRow" style="align-items:flex-start"></div>
+  </section>
+
+  <section class="sec" id="psych">
+    <div class="sec-head">
+      <div class="eyebrow">Why it works</div>
+      <h2>The psychology, mechanic by mechanic</h2>
+      <p>Each one is a known behavioural effect, and each shows up somewhere specific in the screens above.</p>
+    </div>
+    <div class="grid3" id="playbook"></div>
+  </section>
+
+  <section class="sec" id="data">
+    <div class="sec-head">
+      <div class="eyebrow">Plumbing</div>
+      <h2>Where each habit's data comes from</h2>
+      <p>Everything flows through Health Connect, Android's on-device health hub. The app reads it, never writes your health data anywhere else, and works offline.</p>
+    </div>
+    <div class="tbl"><table>
+      <thead><tr><th>Habit</th><th>Source app</th><th>How it reaches the app</th><th>Closes when</th></tr></thead>
+      <tbody>
+        <tr><td><span class="dot" style="background:var(--st)"></span><b>10k steps</b></td><td>Google Health / Samsung Health / phone sensor</td><td>Health Connect step records, de-duplicated across sources (same engine as your Pedometer app)</td><td>10,000 steps since midnight</td></tr>
+        <tr><td><span class="dot" style="background:var(--ca)"></span><b>Under 1,500 kcal</b></td><td>MyFitnessPal</td><td>MyFitnessPal has no free public API, so the app reads the nutrition records MyFitnessPal writes into Health Connect. You turn on Health Connect sync once in MyFitnessPal's settings.</td><td>Kitchen closed (you tap it, or 8:30 PM) with at least one meal logged and 1,500 kcal or less. Going over turns the quarter red.</td></tr>
+        <tr><td><span class="dot" style="background:var(--wt)"></span><b>Weigh-in</b></td><td>Your smart scale's app (I'm reading "Verisync" as Etekcity's VeSync app)</td><td>Health Connect weight records. If your scale app turns out not to write to Health Connect, there's a one-tap manual weigh-in as a fallback.</td><td>Any weight recorded today</td></tr>
+        <tr><td><span class="dot" style="background:var(--ba)"></span><b>Bath</b></td><td>You</td><td>Long-press the bath row, the widget, or the notification action. Stored on the phone only.</td><td>Logged once today (undo for 10 seconds)</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="sec" id="decide">
+    <div class="sec-head">
+      <div class="eyebrow">Before I build</div>
+      <h2>Four calls for you</h2>
+      <p>If you just say "approved", I'll go with the recommendation on each.</p>
+    </div>
+    <div class="grid3">
+      <div class="q"><h3>1. Sticker swaps or hardcore?</h3><p>Swaps: duplicate stickers become swaps, and trading 3 saves a missed day. Hardcore: no saves, one miss and the streak is back to zero.</p><div class="rec">Recommend swaps. Duplicates stay exciting, and one bad dinner can't wipe out 40 days.</div></div>
+      <div class="q"><h3>2. When does the calorie quarter lock?</h3><p>You tap Close kitchen whenever you're done eating; if you forget, it locks automatically at a set time.</p><div class="rec">Recommend auto-lock at 8:30 PM, changeable in settings. Late logs after lock still count against you.</div></div>
+      <div class="q"><h3>3. How pushy are notifications?</h3><p>Morning pledge, midday nudge, 9 PM "at risk" and 11 PM last call, only for habits still open. Or a quieter two.</p><div class="rec">Recommend all four, each skipped automatically once the day is closed.</div></div>
+      <div class="q"><h3>4. Sounds and haptics?</h3><p>A soft click as each quarter closes and a richer chime plus haptic roll on a Perfect Day.</p><div class="rec">Recommend haptics always, sound on (follows your ringer mode).</div></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const C={st:'#3BE38F',ca:'#FF8A3D',wt:'#A98BFF',ba:'#43D3EA',gd:'#FF6B57',rd:'#FF5A6A'};
+const KEYS=['st','ca','wt','ba'];
+const ICON={st:'directions_walk',ca:'restaurant',wt:'monitor_weight',ba:'bathtub'};
+const NAME={st:'10k steps',ca:'Under 1,500 kcal',wt:'Weigh-in',ba:'Bath'};
+
+/* The Seal: four quarter arcs. p = [steps, cal, weigh, bath] in 0..1; bad = index of a broken quarter */
+function arc(cx,cy,r,a0,a1){const R=a=>(a-90)*Math.PI/180;const x1=cx+r*Math.cos(R(a0)),y1=cy+r*Math.sin(R(a0)),x2=cx+r*Math.cos(R(a1)),y2=cy+r*Math.sin(R(a1));return `M${x1.toFixed(2)} ${y1.toFixed(2)}A${r} ${r} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`}
+function seal(p,size,o={}){
+  const gap=22,r=41,sw=o.sw||9;const perfect=p.every(v=>v>=1)&&o.bad==null;
+  let s=`<svg width="${size}" height="${size}" viewBox="0 0 100 100" ${perfect?'class="goldseal"':''} aria-hidden="true">`;
+  s+=`<defs><linearGradient id="g${size}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3BE38F"/><stop offset=".35" stop-color="#43D3EA"/><stop offset=".7" stop-color="#A98BFF"/><stop offset="1" stop-color="#FF8A3D"/></linearGradient></defs>`;
+  for(let i=0;i<4;i++){
+    const a0=i*90+gap/2,a1=(i+1)*90-gap/2,d=arc(50,50,r,a0,a1);
+    const col=o.bad===i?C.rd:C[KEYS[i]];const v=Math.max(0,Math.min(1,p[i]));
+    s+=`<path d="${d}" fill="none" stroke="${col}" stroke-opacity=".16" stroke-width="${sw}" stroke-linecap="round"/>`;
+    if(!perfect&&v>0) s+=`<path class="arcp" d="${d}" pathLength="100" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${(v*100).toFixed(1)} 100" ${v>=1?`style="filter:drop-shadow(0 0 5px ${col})"`:''}/>`;
+  }
+  if(perfect){s+=`<circle cx="50" cy="50" r="${r}" fill="none" stroke="url(#g${size})" stroke-width="${sw+1}"/>`;}
+  return s+'</svg>';
+}
+function miniSeal(p,size=26,bad){return seal(p,size,{sw:14,bad})}
+
+/* PURRFECT DAYS · Series 1: animated cat breeds. Every new sticker is a new breed. */
+let _u=0;
+const HEAD={normal:"M50 22C73 22 88 36 88 56C88 75 72 86 50 86C28 86 12 75 12 56C12 36 27 22 50 22Z",
+ wide:"M50 24C78 24 94 38 94 58C94 77 76 88 50 88C24 88 6 77 6 58C6 38 22 24 50 24Z",
+ narrow:"M50 22C70 22 83 36 82 55C81 74 67 88 50 88C33 88 19 74 18 55C17 36 30 22 50 22Z"};
+const FLUFF="M12 56L3 64L11 68L5 78L16 79L14 90L26 86L29 97L41 90L50 99L59 90L71 97L74 86L86 90L84 79L95 78L89 68L97 64L88 56Z";
+const EAR={normal:["M17 46Q11 15 20 9Q36 15 45 27Z","M22 38Q19 22 23 16Q32 21 38 28Z"],
+ big:["M21 44Q2 7 11 1Q35 9 45 26Z","M24 37Q12 13 15 8Q30 14 39 26Z"],
+ fold:["M22 32Q19 22 31 19Q41 21 41 28Q32 25 22 32Z","M25 29Q25 24 31 22Q37 23 38 26Q32 25 25 29Z"]};
+const mir=d=>`<g transform="translate(100 0) scale(-1 1)">${d}</g>`;
+function cat(o,sil){
+  const id='c'+(_u++),H=HEAD[o.face||'normal'],E=EAR[o.ears||'normal'],fur=sil?'#2a2f40':o.fur,dk=o.dark||o.fur,mk=o.mark||'#14121c';
+  let s=`<defs><linearGradient id="${id}f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${o.fur2||fur}"/><stop offset="1" stop-color="${fur}"/></linearGradient><clipPath id="${id}k"><path d="${H}"/></clipPath>${o.pattern==='points'?`<radialGradient id="${id}p" cx=".5" cy=".62" r=".42"><stop offset="0" stop-color="${mk}" stop-opacity=".95"/><stop offset=".6" stop-color="${mk}" stop-opacity=".55"/><stop offset="1" stop-color="${mk}" stop-opacity="0"/></radialGradient>`:''}</defs>`;
+  const furFill=sil?fur:`url(#${id}f)`;
+  const earL=`<path d="${E[0]}" fill="${sil?fur:(o.pattern==='points'?mk:(o.earFur||dk))}"/>${sil?'':`<path d="${E[1]}" fill="${o.inner||'#FFB3C7'}" opacity=".9"/>`}${o.ears==='tuft'||o.tuft?`<path d="M19 10L16 1M20 10L24 2" stroke="${sil?fur:dk}" stroke-width="2.6" stroke-linecap="round"/>`:''}`;
+  s+=`<g class="bob">`;
+  if(o.fluff)s+=`<path d="${FLUFF}" fill="${sil?fur:(o.fluffC||o.fur)}"/>`;
+  if(o.ears!=='fold')s+=`<g class="earL">${earL}</g><g class="earR">${mir(earL)}</g>`;
+  s+=`<path d="${H}" fill="${furFill}"/>`;
+  if(o.ears==='fold')s+=`<g class="earL">${earL}</g><g class="earR">${mir(earL)}</g>`;
+  if(sil){s+=`</g>`;return s}
+  let p='';
+  if(o.pattern==='tabby')p=`<path d="M50 25V39M41 27Q43 33 42 40M59 27Q57 33 58 40" stroke="${mk}" stroke-width="3.4" stroke-linecap="round" fill="none"/><path d="M12 52Q19 53 24 57M12 61Q18 61 23 64" stroke="${mk}" stroke-width="3" stroke-linecap="round" fill="none"/>${mir(`<path d="M12 52Q19 53 24 57M12 61Q18 61 23 64" stroke="${mk}" stroke-width="3" stroke-linecap="round" fill="none"/>`)}`;
+  if(o.pattern==='points')p=`<ellipse cx="50" cy="64" rx="30" ry="26" fill="url(#${id}p)"/>`;
+  if(o.pattern==='spots')p=[[24,40],[36,32],[64,32],[76,40],[18,60],[82,60],[30,78],[70,78]].map(([x,y])=>`<ellipse cx="${x}" cy="${y}" rx="5.2" ry="4.2" fill="none" stroke="${mk}" stroke-width="2.4"/><ellipse cx="${x}" cy="${y}" rx="2.2" ry="1.8" fill="${o.mark2||'#B5651D'}"/>`).join('')+`<path d="M50 25V36M44 27V34M56 27V34" stroke="${mk}" stroke-width="2.6" stroke-linecap="round"/>`;
+  if(o.pattern==='tux')p=`<path d="M50 34C44 44 34 56 27 72C36 92 64 92 73 72C66 56 56 44 50 34Z" fill="#FAFAFC"/>`;
+  if(o.pattern==='calico')p=`<path d="M8 40Q24 20 44 26Q40 46 24 52Q14 54 8 48Z" fill="#E8893A"/><path d="M60 22Q84 24 94 46Q80 50 70 42Q60 36 60 22Z" fill="#2B2730"/><path d="M70 74Q84 66 94 74L90 90L72 90Z" fill="#E8893A"/>`;
+  if(o.pattern==='chest')p=`<ellipse cx="50" cy="80" rx="20" ry="10" fill="#FAFAFC"/>`;
+  s+=`<g clip-path="url(#${id}k)">${p}<ellipse cx="50" cy="34" rx="22" ry="8" fill="#fff" opacity=".12"/></g>`;
+  const ec=o.eyes||'#7BD88F',ey=o.face==='wide'?55:53;
+  const eyeOne=x=>o.sleep?`<path d="M${x-7} ${ey}Q${x} ${ey+6} ${x+7} ${ey}" fill="none" stroke="#14121c" stroke-width="2.8" stroke-linecap="round"/>`:o.happy?`<path d="M${x-7} ${ey+1}Q${x} ${ey-7} ${x+7} ${ey+1}" fill="none" stroke="#14121c" stroke-width="2.8" stroke-linecap="round"/>`:(o.round?`<circle cx="${x}" cy="${ey}" r="7.2" fill="${ec}" stroke="#14121c" stroke-width="1.3"/><ellipse cx="${x}" cy="${ey}" rx="3" ry="5.4" fill="#14121c"/>`:`<path d="M${x-8.5} ${ey}Q${x} ${ey-9} ${x+8.5} ${ey}Q${x} ${ey+8} ${x-8.5} ${ey}Z" fill="${ec}" stroke="#14121c" stroke-width="1.3"/><ellipse cx="${x}" cy="${ey}" rx="1.9" ry="5.6" fill="#14121c"/>`)+(o.happy||o.sleep?'':`<circle cx="${x+2.6}" cy="${ey-2.6}" r="1.7" fill="#fff"/><circle cx="${x-2.6}" cy="${ey+2.2}" r=".8" fill="#fff" opacity=".8"/>`);
+  s+=`<g class="eyes">${eyeOne(37)}${eyeOne(63)}</g>`;
+  if(o.glow)s+=`<g opacity=".55">${[37,63].map(x=>`<circle cx="${x}" cy="${ey}" r="10" fill="${ec}" style="filter:blur(3px)"/>`).join('')}</g>`;
+  const mz=o.muzzle||'#FFF6EC',nc=o.nose||'#FF8FA8';
+  s+=`<ellipse cx="44" cy="67" rx="8" ry="6" fill="${mz}"/><ellipse cx="56" cy="67" rx="8" ry="6" fill="${mz}"/><path d="M46.5 61H53.5Q53 65 50 66Q47 65 46.5 61Z" fill="${nc}"/><path d="M50 66V68M50 68Q47 72 44 69M50 68Q53 72 56 69" stroke="#14121c" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+  s+=`<ellipse cx="25" cy="66" rx="5" ry="2.8" fill="#FF7FA8" opacity=".35"/><ellipse cx="75" cy="66" rx="5" ry="2.8" fill="#FF7FA8" opacity=".35"/>`;
+  const wk=`<path d="M36 66L13 61M36 69L12 70M37 72L15 78" stroke="${o.whisk||'rgba(255,255,255,.85)'}" stroke-width="1.1" stroke-linecap="round"/>`;
+  s+=`<g class="whisk">${wk}${mir(wk)}</g>`;
+  if(o.collar)s+=`<path d="M24 82Q50 94 76 82" stroke="${o.collar}" stroke-width="5" fill="none" stroke-linecap="round"/><circle cx="50" cy="91" r="5" fill="#FFD36B" stroke="#C98A1E" stroke-width="1.2"/><path d="M47 91H53" stroke="#8a5a10" stroke-width="1"/>`;
+  if(o.lucky)s+=`<g class="wave"><path d="M74 60Q80 30 86 22Q94 16 96 26Q96 44 86 62Z" fill="#FFFFFF" stroke="#E5E2EA" stroke-width="1"/><path d="M86 24Q90 20 93 25" stroke="#FFB3C7" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M84 30L87 33M89 28L91 32" stroke="#d6d2de" stroke-width="1.4" stroke-linecap="round"/></g>`;
+  if(o.crown)s+=`<path d="M38 22L41 12L46 19L50 9L54 19L59 12L62 22Z" fill="#FF8FD0" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>`;
+  return s+`</g>`;
+}
+const BREEDS={
+  gold:{n:'Mango',b:'Orange Tabby',r:'Common',rc:'#C9CEDC',line:'"Fed. Walked. Unstoppable."',c:{fur:'#F28C38',fur2:'#FFB36B',dark:'#D9701F',mark:'#C2571A',pattern:'tabby',eyes:'#8FE07A',muzzle:'#FFF1E0'}},
+  ember:{n:'Oreo',b:'Tuxedo',r:'Common',rc:'#C9CEDC',line:'"Dressed for a Perfect Day."',c:{fur:'#1E1C24',fur2:'#3A3744',pattern:'tux',eyes:'#C8E06A',muzzle:'#FAFAFC',nose:'#FF8FA8'}},
+  koala:{n:'Patches',b:'Calico',r:'Common',rc:'#C9CEDC',line:'"Earned this nap."',c:{sleep:1,fur:'#F4EFE8',fur2:'#FFFFFF',dark:'#E8893A',earFur:'#E8893A',pattern:'calico',eyes:'#F0A640',whisk:'rgba(80,70,80,.6)'}},
+  jade:{n:'Miso',b:'Siamese',r:'Uncommon',rc:'#43D3EA',line:'"Self-care is a habit too."',c:{fur:'#EADBC4',fur2:'#F8EEDD',face:'narrow',pattern:'points',mark:'#4A3328',eyes:'#5BB8FF',muzzle:'#5A4034',nose:'#3a2a24',whisk:'rgba(255,255,255,.7)'}},
+  tide:{n:'Blue',b:'Russian Blue',r:'Uncommon',rc:'#43D3EA',line:'"If I fits, I sits. If I streaks, I streaks."',c:{fur:'#7F8DA6',fur2:'#A6B2C8',dark:'#6C7A93',eyes:'#4CD49A',muzzle:'#B9C3D6',nose:'#5E6B82'}},
+  flamingo:{n:'Dumpling',b:'Scottish Fold',r:'Uncommon',rc:'#43D3EA',line:'"Inner peace. Outer streak."',c:{fur:'#C9C4CF',fur2:'#E4E0E8',ears:'fold',face:'wide',round:1,eyes:'#F0A640',muzzle:'#F2EFF5',pattern:'tabby',mark:'#9C96A4'}},
+  wolf:{n:'Thor',b:'Maine Coon',r:'Rare · 1 in 12',rc:'#FF6B57',line:'"Big cat. Bigger streak."',c:{fur:'#8A5A36',fur2:'#B07D52',dark:'#6B4226',mark:'#4A2C18',pattern:'tabby',fluff:1,fluffC:'#C9A27A',tuft:1,eyes:'#C9D45A'}},
+  obsidian:{n:'Jaguar',b:'Bengal',r:'Rare · 1 in 12',rc:'#FF6B57',line:'"Pouncing on tomorrow."',c:{fur:'#E0A050',fur2:'#F4C27A',dark:'#C9852E',mark:'#3A2414',pattern:'spots',eyes:'#6FD39A',muzzle:'#FFF1DC'}},
+  sphynx:{n:'Dobby',b:'Sphynx',r:'Rare · 1 in 12',rc:'#FF6B57',line:'"Cold outside. Hot streak."',c:{fur:'#F2C2B0',fur2:'#FFD9CC',ears:'big',face:'narrow',eyes:'#7BD88F',muzzle:'#FFD9CC',nose:'#E58A9A',inner:'#FF9FB6',whisk:'rgba(140,90,90,.35)'}},
+  aurora:{n:'Midnight',b:'Black Cat',r:'Holo · 1 in 40',rc:'#C9B4FF',holo:1,line:'"Night walks hit different."',c:{fur:'#14121C',fur2:'#2E2A3E',eyes:'#7CFFDF',glow:1,muzzle:'#2E2A3E',nose:'#4A4560',inner:'#4A3A60'}},
+  phoenix:{n:'Maneki',b:'Lucky Cat',r:'Legendary · comebacks only',rc:'#FF8FD0',holo:1,line:'"Welcome back. Good fortune ahead."',c:{fur:'#FFFFFF',fur2:'#FFFFFF',happy:1,collar:'#FF5A6A',lucky:1,inner:'#FF8FA8',pattern:'calico',muzzle:'#FFFFFF',whisk:'rgba(80,70,80,.5)'}}
+};
+const SEALS=BREEDS;
+const SECRETS=[['ragdoll','Ragdoll','Close the day after 11 PM',{ears:'normal',fluff:1}],['persian','Persian','All four closed before noon',{face:'wide',fluff:1,ears:'fold'}],['savannah','Savannah','Hit a new lowest weight',{ears:'big',face:'narrow'}],['norwegian','Norwegian Forest','20,000 steps in one day',{fluff:1,tuft:1}],['british','British Shorthair','7 Perfect Days, no swaps',{face:'wide'}],['lion','Lion','A full Perfect Month',{fluff:1,face:'wide'}]];
+/* Round stickers, full-body cats: each breed has its own pose and idle animation. */
+function body(k,o,c,sil){
+  const F=sil?'#2a2f40':`url(#${k}bf)`, D=sil?'#2a2f40':(c.dark||c.fur), L=sil?'#2a2f40':(c.belly||c.muzzle||'#FFF6EC'), P=c.pattern;
+  const pts=sil?'#2a2f40':(P==='points'?c.mark:D);
+  let g=`<defs><linearGradient id="${k}bf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c.fur2||c.fur}"/><stop offset="1" stop-color="${c.fur}"/></linearGradient></defs>`;
+  const head=(x,y,s,extra='')=>`<g transform="translate(${x} ${y}) scale(${s})" ${extra}>${cat({...c,collar:null,lucky:null},sil)}</g>`;
+  const stripes=(sil||P!=='tabby')?'':`<path d="M33 66Q38 67 40 71M31 74Q36 75 39 79M67 66Q62 67 60 71M69 74Q64 75 61 79" stroke="${c.mark}" stroke-width="2.6" stroke-linecap="round" fill="none"/>`;
+  const spots=(sil||P!=='spots')?'':[[36,68],[64,68],[34,80],[66,80],[50,62]].map(([x,y])=>`<ellipse cx="${x}" cy="${y}" rx="3.6" ry="3" fill="none" stroke="${c.mark}" stroke-width="2"/>`).join('');
+  const calico=(sil||P!=='calico')?'':`<path d="M30 66Q36 58 44 62Q42 72 32 76Z" fill="#E8893A"/><path d="M58 78Q64 70 71 75Q74 82 68 87Q61 89 58 84Z" fill="#2B2730"/>`;
+  const tux=(sil||P!=='tux')?'':`<path d="M50 56C44 64 41 74 42 92H58C59 74 56 64 50 56Z" fill="#FAFAFC"/>`;
+  const sitBody=(tail=true,legs=true)=>`${tail?`<path class="tail" d="M68 88Q90 90 87 70Q86 60 79 57" stroke="${P==='points'?pts:D}" stroke-width="${o.bigTail?11:7}" fill="none" stroke-linecap="round" style="transform-origin:68px 88px"/>`:''}
+   <path d="M50 50C66 50 73 66 73 78C73 88 65 93 50 93C35 93 27 88 27 78C27 66 34 50 50 50Z" fill="${F}"/>${stripes}${spots}${calico}${tux}
+   ${sil?'':`<ellipse cx="50" cy="70" rx="9" ry="13" fill="${P==='tux'?'#FAFAFC':L}" opacity="${P==='tux'?0:.55}"/>`}
+   ${legs?`<rect x="40" y="73" width="8.5" height="19" rx="4.2" fill="${P==='points'?pts:F}"/><rect x="51.5" y="73" width="8.5" height="19" rx="4.2" fill="${P==='points'?pts:F}"/><ellipse cx="44.2" cy="92" rx="5.6" ry="3.2" fill="${sil?F:(P==='tux'?'#FAFAFC':L)}"/><ellipse cx="55.8" cy="92" rx="5.6" ry="3.2" fill="${sil?F:(P==='tux'?'#FAFAFC':L)}"/>`:''}`;
+  switch(o.pose){
+   case 'sit': return g+`<g class="breathe">${sitBody()}${head(23,10,.54)}</g>`;
+   case 'proud': return g+`<g class="breathe">${sitBody()}${head(21,6,.58)}</g>`;
+   case 'lick': return g+`<g class="breathe">${sitBody(true,false)}<rect x="40" y="73" width="8.5" height="19" rx="4.2" fill="${P==='points'?pts:F}"/><ellipse cx="44.2" cy="92" rx="5.6" ry="3.2" fill="${sil?F:L}"/>${head(23,10,.54)}<g class="lick" style="transform-origin:58px 80px"><rect x="54" y="56" width="8.5" height="26" rx="4.2" fill="${P==='points'?pts:F}"/><ellipse cx="58" cy="57" rx="5.6" ry="4.2" fill="${sil?F:'#FFB3C7'}"/></g></g>`;
+   case 'wave': return g+`<g class="breathe">${sitBody()}${sil?'':`<path d="M30 54Q50 62 70 54" stroke="#FF5A6A" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="50" cy="60" r="3.6" fill="#FFD36B" stroke="#C98A1E" stroke-width="1"/>`}${head(23,6,.54)}<g class="wave" style="transform-origin:68px 62px"><path d="M66 64Q76 46 78 34" stroke="${F}" stroke-width="9" stroke-linecap="round" fill="none"/><circle cx="78.5" cy="32" r="5.6" fill="${sil?F:'#fff'}"/><path d="M76 29.5h5" stroke="${sil?F:'#FFB3C7'}" stroke-width="1.6" stroke-linecap="round"/></g></g>`;
+   case 'loaf': return g+`<g class="breathe"><path d="M20 72Q20 54 50 54Q80 54 80 72L80 84Q80 91 72 91L28 91Q20 91 20 84Z" fill="${F}"/>${tux?`<path d="M40 60Q50 56 60 60Q61 74 50 84Q39 74 40 60Z" fill="#FAFAFC"/>`:''}<path class="tail" d="M78 86Q62 95 36 91" stroke="${D}" stroke-width="7" fill="none" stroke-linecap="round" style="transform-origin:78px 86px"/><ellipse cx="44" cy="90" rx="5" ry="2.6" fill="${sil?F:'#FAFAFC'}"/><ellipse cx="56" cy="90" rx="5" ry="2.6" fill="${sil?F:'#FAFAFC'}"/>${head(25,18,.5)}</g>`;
+   case 'sleep': return g+`<g class="breathe"><ellipse cx="54" cy="74" rx="32" ry="18" fill="${F}"/>${calico?`<path d="M60 58Q74 56 82 66Q72 72 62 68Z" fill="#E8893A"/><path d="M66 76Q74 72 80 78Q80 86 72 87Q65 85 66 76Z" fill="#2B2730"/>`:''}<path class="tail" d="M84 78Q78 94 50 92Q34 91 28 86" stroke="${D}" stroke-width="7" fill="none" stroke-linecap="round" style="transform-origin:84px 78px"/>${head(4,40,.46,'transform-origin="0 0"')}</g>${sil?'':`<g class="zz"><text x="70" y="38" font-family="Bricolage Grotesque" font-weight="800" font-size="12" fill="#fff">z</text><text x="78" y="28" font-family="Bricolage Grotesque" font-weight="800" font-size="9" fill="#fff" opacity=".8">z</text><text x="84" y="20" font-family="Bricolage Grotesque" font-weight="800" font-size="7" fill="#fff" opacity=".6">z</text></g>`}`;
+   case 'box': return g+`<g class="peek">${head(24,14,.52)}<ellipse cx="40" cy="62" rx="6" ry="4.4" fill="${sil?F:(c.muzzle||L)}"/><ellipse cx="60" cy="62" rx="6" ry="4.4" fill="${sil?F:(c.muzzle||L)}"/></g><path d="M14 62L22 54H78L86 62Z" fill="${sil?'#1c2030':'#A97B48'}"/><rect x="16" y="62" width="68" height="31" rx="3" fill="${sil?'#2a2f40':'#C99A62'}"/>${sil?'':`<rect x="44" y="62" width="12" height="31" fill="#E2BC86" opacity=".7"/><text x="30" y="84" font-family="Figtree" font-weight="800" font-size="6" fill="#8a6234" transform="rotate(-6 30 84)">FRAGILE</text>`}`;
+   case 'pounce': return g+`<g class="wig" style="transform-origin:50px 60px"><path class="tail" d="M64 56Q80 36 70 18" stroke="${D}" stroke-width="7" fill="none" stroke-linecap="round" style="transform-origin:64px 56px"/><ellipse cx="50" cy="60" rx="22" ry="15" fill="${F}"/>${spots?[[40,56],[58,54],[50,66]].map(([x,y])=>`<ellipse cx="${x}" cy="${y}" rx="3.4" ry="2.8" fill="none" stroke="${c.mark}" stroke-width="2"/>`).join(''):''}</g><rect x="22" y="78" width="18" height="9" rx="4.5" fill="${F}"/><rect x="60" y="78" width="18" height="9" rx="4.5" fill="${F}"/><ellipse cx="24" cy="86" rx="6" ry="3.4" fill="${sil?F:L}"/><ellipse cx="76" cy="86" rx="6" ry="3.4" fill="${sil?F:L}"/>${head(21,32,.58)}`;
+   case 'buddha': return g+`<g class="sway" style="transform-origin:50px 92px"><ellipse cx="30" cy="88" rx="10" ry="6" fill="${F}"/><ellipse cx="70" cy="88" rx="10" ry="6" fill="${F}"/><path d="M50 48C68 48 76 64 76 78C76 89 66 93 50 93C34 93 24 89 24 78C24 64 32 48 50 48Z" fill="${F}"/>${stripes}<ellipse cx="50" cy="76" rx="15" ry="14" fill="${sil?F:L}"/><ellipse cx="42" cy="70" rx="5" ry="4" fill="${F}"/><ellipse cx="58" cy="70" rx="5" ry="4" fill="${F}"/><ellipse cx="22" cy="90" rx="5" ry="3.4" fill="${sil?F:'#FFB3C7'}"/><ellipse cx="78" cy="90" rx="5" ry="3.4" fill="${sil?F:'#FFB3C7'}"/>${head(23,6,.54)}</g>`;
+   case 'sweater': return g+`<g class="shiver">${sitBody()}${sil?'':`<path d="M30 60Q50 50 70 60L73 80Q50 86 27 80Z" fill="#FF8FD0"/><path d="M30 60Q50 50 70 60" stroke="#fff" stroke-width="3" fill="none" stroke-dasharray="2 3"/><path d="M32 74H68M31 68H69" stroke="#E0469B" stroke-width="1.6" stroke-dasharray="2 2"/><text x="50" y="78" text-anchor="middle" font-family="Figtree" font-weight="800" font-size="6" fill="#fff">10K</text>`}${head(23,8,.54)}</g>`;
+   case 'moon': return g+`${sil?'':`<circle cx="70" cy="30" r="16" fill="#E9ECF5"/><circle cx="64" cy="26" r="3" fill="#C9CEDC"/><circle cx="74" cy="36" r="2.2" fill="#C9CEDC"/><g class="tw"><path d="M22 22l1.5 3.5 3.5 1.5-3.5 1.5-1.5 3.5-1.5-3.5-3.5-1.5 3.5-1.5Z" fill="#fff"/><path d="M84 60l1 2.4 2.4 1-2.4 1-1 2.4-1-2.4-2.4-1 2.4-1Z" fill="#9BE7FF"/></g>`}<g class="breathe"><path class="tail" d="M70 88Q88 84 84 64Q82 54 88 46" stroke="${D}" stroke-width="7" fill="none" stroke-linecap="round" style="transform-origin:70px 88px"/>${sitBody(false)}${head(23,10,.54)}</g>`;
+  }
+}
+const POSE={gold:{pose:'sit',bg:['#FFD8B8','#FF9F6B']},ember:{pose:'loaf',bg:['#C9F7E0','#5FD9A3']},koala:{pose:'sleep',bg:['#E5DBFF','#A98BFF']},jade:{pose:'lick',bg:['#CDEBFF','#6FB7FF']},tide:{pose:'box',bg:['#FFD6E6','#FF8FB8']},flamingo:{pose:'buddha',bg:['#C6F4F4','#43D3EA']},wolf:{pose:'proud',bigTail:1,bg:['#D4F0C4','#5FB86A']},obsidian:{pose:'pounce',bg:['#D6F5D0','#3BB36E']},sphynx:{pose:'sweater',bg:['#FFE0EC','#FF7FAE']},aurora:{pose:'moon',bg:['#3A3F8F','#151842']},phoenix:{pose:'wave',bg:['#FFD6DC','#FF5A6A']}};
+function stickerSvg(k,c,o,size,holo,sil){const id='r'+(_u++),dl=(Math.random()*-4).toFixed(2);
+  return `<svg class="stk round ${holo?'holo':''}" width="${size}" height="${size}" viewBox="0 0 100 100" style="--d:${dl}s" aria-hidden="true"><defs><radialGradient id="${id}b" cx=".5" cy=".35" r=".75"><stop offset="0" stop-color="${sil?'#1d2130':o.bg[0]}"/><stop offset="1" stop-color="${sil?'#12141c':o.bg[1]}"/></radialGradient><linearGradient id="${id}h" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9ad5"/><stop offset=".33" stop-color="#9be7ff"/><stop offset=".66" stop-color="#c6a8ff"/><stop offset="1" stop-color="#9bffcf"/></linearGradient><clipPath id="${id}c"><circle cx="50" cy="50" r="45"/></clipPath></defs>
+  <circle cx="50" cy="50" r="50" fill="${holo?`url(#${id}h)`:(sil?'#232838':'#fff')}"/><circle cx="50" cy="50" r="45" fill="url(#${id}b)"/>
+  <g clip-path="url(#${id}c)"><ellipse cx="50" cy="94" rx="30" ry="5" fill="#000" opacity=".15"/>${body(id,o,c,sil)}${sil?'<text x="50" y="62" text-anchor="middle" font-family="Bricolage Grotesque" font-weight="800" font-size="26" fill="#4a5168">?</text>':''}<ellipse cx="34" cy="20" rx="22" ry="9" fill="#fff" opacity=".18" transform="rotate(-20 34 20)"/></g></svg>`}
+function medal(k,size=64,locked){
+  if(locked)return `<div style="width:${size}px;height:${size}px;border-radius:50%;border:2px dashed #2c3140;display:grid;place-items:center;color:#3a4050;font:800 ${size*.32}px var(--display)">?</div>`;
+  const m=SEALS[k];return stickerSvg(k,m.c,POSE[k],size,m.holo)}
+const SECPOSE={ragdoll:'loaf',persian:'buddha',savannah:'proud',norwegian:'sit',british:'sit',lion:'proud'};
+function silhouette(k,size){const s=SECRETS.find(x=>x[0]===k);return stickerSvg(k,{fur:'#2a2f40',...s[3]},{pose:SECPOSE[k]||'sit',bg:['#1d2130','#12141c']},size,false,true)}
+
+function packView(n=24){return `<div class="reveal" style="top:34px;justify-content:flex-start">
+<div class="pd" style="margin-top:6px">Perfect Day #${n}</div>
+<div class="strk num" style="font-size:30px;margin-top:6px"><s style="font-size:20px">${n-1}</s>${n}<span class="ms" style="font-size:28px">local_fire_department</span></div>
+<div class="sub" style="margin-top:10px">You earned a pack.</div>
+<div style="margin:26px 0 20px"><div class="pack" id="packbtn"><div class="zig"></div><small>Series 1</small><b>PURRFECT<br>DAYS</b><div class="q">?</div><small>1 sticker inside</small></div></div>
+<div style="font:800 16px var(--display)">Tap to rip it open</div>
+<div class="sub" style="font-size:12px;margin-top:8px">Common 60% · Uncommon 25% · Rare 10% · Holo 5%</div></div>`}
+function revealView(k,o={}){const m=SEALS[k];const isNew=o.isNew!==false;return `<div class="reveal" style="top:34px;--rc:${m.rc};justify-content:flex-start">
+<div class="rays" style="top:-150px"></div>${o.flash?'<div class="flash"></div>':''}
+<div class="rar" style="color:${m.rc};margin-top:14px">${m.r}</div>
+<div style="position:relative;margin:18px 0 6px" class="drop">${medal(k,180)}${isNew?'<span class="newb">NEW!</span>':''}</div>
+<h2 style="font-size:30px;margin-top:6px">${m.n}</h2><div class="rar" style="color:var(--mute);letter-spacing:.12em;margin-top:2px">${m.b}</div>
+<div class="sub" style="font-style:italic">${m.line}</div>
+<div style="width:100%;margin-top:16px;text-align:left"><div style="display:flex;justify-content:space-between;font:600 12px var(--body);color:var(--mute)"><span>Purrfect Days · Series 1</span><span class="num" style="color:var(--ink)">${isNew?'10':'9'} of 24</span></div>
+<div style="height:6px;border-radius:6px;background:#1d212c;margin-top:6px;overflow:hidden"><i style="display:block;height:100%;width:${(isNew?10:9)/24*100}%;background:linear-gradient(90deg,#3BE38F,#43D3EA,#A98BFF,#FF8FD0);box-shadow:0 0 10px rgba(150,140,255,.6)"></i></div>
+<div style="font:500 12px var(--body);color:var(--mute);margin-top:6px">${isNew?'14 cats still out there. 6 are secret.':'Duplicate → +1 swap (you have 4)'}</div></div>
+<div style="display:flex;gap:8px;width:100%;margin-top:14px"><button class="btn" style="margin:0;background:#25D366;color:#04210f;font-size:13px">Send to WhatsApp</button><button class="btn ghost" style="margin:0;font-size:13px">Story</button></div>
+${Array.from({length:26},(_,i)=>`<i class="spark" style="left:${(i*37)%330+10}px;top:${-10-(i*23)%60}px;background:${[m.rc,'#fff',m.rc,'#43D3EA','#FF8FD0'][i%5]};animation:fall ${2.5+i%4}s ${i*.08}s linear infinite"></i>`).join('')}
+</div>`}
+
+/* shared bits */
+const sb=t=>`<div class="cam"></div><div class="sb"><span class="num">${t}</span><span class="r"><span class="ms" style="font-size:15px">notifications</span>5G <span class="num">82%</span></span></div>`;
+const topBar=(d,streak,shields)=>`<div class="top"><div class="date">${d.split('|')[0]}<b>${d.split('|')[1]}</b></div><div class="pills"><span class="pill fire"><span class="ms">local_fire_department</span><span class="num">${streak}</span></span><span class="pill ice"><span class="ms">auto_awesome</span><span class="num">${shields}</span></span></div></div>`;
+const nav=(on=0)=>`<div class="nav">${[['today','Today'],['calendar_month','Journey'],['auto_awesome','Stickers']].map((n,i)=>`<div class="${i===on?'on':''}"><span class="ms">${n[0]}</span>${n[1]}</div>`).join('')}</div>`;
+function hrow(k,o){const col=o.bad?C.rd:C[k];const done=o.done;
+  return `<div class="h ${done?'done':''}" ${o.attr||''}><div class="ic" style="background:${col}"><span class="ms">${ICON[k]}</span></div><div><div class="t">${NAME[k]}</div><div class="s">${o.s}</div>${o.bar!=null?`<div class="bar"><i style="width:${Math.min(100,o.bar*100)}%;background:${col}"></i></div>`:''}</div><div class="v num">${done?`<span class="chk" style="background:${col}"><span class="ms">check</span></span>`:o.v}</div></div>`}
+function weekStrip(days){return `<div class="week">${days.map(d=>`<div class="wd ${d.t?'today':''}">${miniSeal(d.p,26,d.bad)}${d.l}</div>`).join('')}</div>`}
+const P=1,F=[1,1,1,1];
+const WEEK=[{l:'S',p:F},{l:'M',p:F},{l:'T',p:F},{l:'W',p:F},{l:'T',p:F},{l:'F',p:F},{l:'S',p:[.876,1,1,1],t:1}];
+
+/* ---------------- COVER SCREENS ---------------- */
+const cover=[];
+cover.push({t:'7:12 AM · the pledge',c:'<b>Morning.</b> Before anything else, you hold to pledge "I close all four today". Saying it out loud (well, with a thumb) makes you far more likely to follow through. The weigh-in is framed as an instant quarter: 25% of the day done in 30 seconds.',h:
+`${sb('7:12')}${topBar('Saturday|Oct 31',23,3)}
+<div class="sealbox" style="margin:6px 0 2px">${seal([.04,0,0,0],230)}<div class="mid"><div class="big num">0<small>/4</small></div><div class="lbl">closed</div><div class="hint">Perfect Day #24 is up for grabs</div></div></div>
+<div class="card" style="border-color:rgba(169,139,255,.4)"><div class="k" style="color:#C9B8FF"><span class="ms">wb_sunny</span>Today's pledge</div><h3>"I close all four today."</h3><p>You've kept 23 pledges in a row.</p><div class="hold"><i style="width:38%"></i><span>Hold to pledge</span></div></div>
+<div class="gap"></div>
+<div class="habits">${hrow('wt',{s:'Step on the scale: instant 25%',v:'<span style="color:var(--wt)">Now</span>'})}${hrow('st',{s:'412 so far',v:'412',bar:.04})}</div>
+${nav(0)}`});
+
+cover.push({t:'1:40 PM · ahead of pace',c:'<b>Midday.</b> Two quarters closed. The app picks the single best next action and frames it against your own past, never against strangers. Calories show as a budget left rather than a total eaten, so every meal feels like spending.',h:
+`${sb('1:40')}${topBar('Saturday|Oct 31',23,3)}
+<div class="sealbox" style="margin:6px 0 2px">${seal([.64,.48,1,1],196)}<div class="mid"><div class="big num">2<small>/4</small></div><div class="lbl">closed</div><div class="hint">Ahead of your usual Saturday</div></div></div>
+<div class="habits">
+${hrow('st',{s:'3,580 to go · about 36 min of walking',v:'6,420',bar:.64})}
+${hrow('ca',{s:'780 kcal left · on track',v:'720',bar:.48})}
+${hrow('wt',{s:'176.4 lb · down 0.6 this week',done:1})}
+${hrow('ba',{s:'Logged 8:05 AM',done:1})}
+</div><div class="gap"></div>
+<div class="card"><div class="k"><span class="ms">bolt</span>Best next move</div><h3>A 20-minute walk now puts you at 8,400 by 2 PM.</h3><p>Days you hit 8k by 2 PM, you closed steps 96% of the time.</p></div>
+${nav(0)}`});
+
+cover.push({t:'9:18 PM · so close',c:'<b>Near miss + loss aversion.</b> Three of four closed and the streak is on the line. The gap is shown as effort ("one 12-minute walk"), not a percentage, and the countdown makes the cost of quitting concrete. The open quarter pulses.',h:
+`${sb('9:18')}${topBar('Saturday|Oct 31',23,3)}
+<div class="sealbox" style="margin:6px 0 2px">${seal([.876,1,1,1],230)}<div class="mid"><div class="big num">3<small>/4</small></div><div class="lbl">closed</div><div class="hint" style="color:var(--st)">1,240 steps from a Perfect Day</div></div></div>
+<div class="card risk"><div class="k"><span class="ms">timer</span>23-day streak at risk</div><div class="cd num" data-countdown="9719">2:41:59</div><h3 style="margin-top:8px">One 12-minute walk closes it.</h3><p>Close it and Perfect Day #24 earns you a sticker pack.</p><button class="btn" style="background:var(--st)"><span class="ms">directions_walk</span>Start walk</button></div>
+<div class="gap"></div>
+<div class="habits">${hrow('ca',{s:'Kitchen closed · 1,380 kcal sealed',done:1})}</div>
+${nav(0)}`});
+
+cover.push({t:'9:34 PM · Perfect Day: rip the pack',c:'<b>Anticipation.</b> The four arcs snap into one glowing circle and you get a sealed foil pack that wobbles until you tear it. The wait between the tap and the reveal is where the dopamine lives. Odds are shown up front, like a real trading card pack.',h:
+`${sb('9:34')}${packView(24)}`});
+cover.push({t:'9:34 PM · the reveal',c:'<b>Variable reward, maxed.</b> Flash, spinning rays in the rarity colour, the sticker slams in with a NEW! badge, its name and a one-line personality. Every new sticker is a new cat breed that blinks, twitches and wobbles, the album counter ticks up, and it goes straight to WhatsApp or your story.',h:
+`${sb('9:34')}${revealView('obsidian')}`});
+
+cover.push({t:'Journey · the chain',c:'<b>Don\'t break the chain.</b> Every Perfect Day lights up on the calendar. Empty gaps look wrong, and you\'ll want to avoid making one. The weekly grid shows each habit day by day; a red cell marks exactly which habit broke a day.',h:
+`${sb('9:40')}<div class="top"><div class="date">Journey<b>October</b></div><div class="pills"><span class="pill fire"><span class="ms">local_fire_department</span><span class="num">24</span></span></div></div>
+<div style="display:flex;justify-content:space-around;padding:12px 16px 10px;text-align:center">
+<div><div style="font:800 32px var(--display);color:var(--fl)" class="num">24</div><div class="eyebrow" style="font-size:10px">streak</div></div>
+<div><div style="font:800 32px var(--display)" class="num">41</div><div class="eyebrow" style="font-size:10px">best ever</div></div>
+<div><div style="font:800 32px var(--display)" class="num">87%</div><div class="eyebrow" style="font-size:10px">last 30 days</div></div></div>
+<div class="cal">${['S','M','T','W','T','F','S'].map(d=>`<div class="dh">${d}</div>`).join('')}${calDays()}</div>
+<div class="gap"></div>
+<div class="card" style="padding:12px 0"><div class="k" style="padding:0 16px 8px">This week by habit</div>
+<div class="mx"><span></span>${['S','M','T','W','T','F','S'].map(d=>`<span style="text-align:center">${d}</span>`).join('')}
+${KEYS.map(k=>`<span>${NAME[k].replace('Under ','≤')}</span>${[1,1,1,1,1,1,1].map((v,i)=>`<i style="background:${v?C[k]:''};${!v?'':''}"></i>`).join('')}`).join('')}</div></div>
+${nav(1)}`});
+function calDays(){let s='';for(let i=0;i<4;i++)s+='<div class="c n"></div>';
+  for(let d=1;d<=31;d++){let cls='p';if(d===7||d===2)cls='m';if(d===4)cls='f';if(d===31)cls='p t';s+=`<div class="c ${cls}">${d}</div>`;}return s}
+
+cover.push({t:'Morning after a slip · swaps saved you',c:'<b>Collection as insurance.</b> Yesterday calories went over. You traded 3 duplicate stickers to keep 35 days alive. Duplicates finally have a purpose, so every Perfect Day feels worth it even when the sticker isn\'t new.',h:
+`${sb('7:05')}${topBar('Thursday|Nov 12',35,1)}
+<div class="card" style="margin-top:12px;text-align:center;border-color:rgba(255,143,208,.35);background:radial-gradient(100% 120% at 50% 0%,rgba(255,143,208,.14),transparent 60%),var(--s1)">
+<div style="display:flex;justify-content:center;gap:4px;margin:10px 0 8px;opacity:.9">${medal('gold',48)}${medal('jade',48)}${medal('ember',48)}</div>
+<h3 style="font-size:22px">3 swaps saved 35 days</h3><p>You went 112 kcal over, so you traded three duplicates to keep the streak. 1 swap left. Every duplicate you pull adds one.</p></div>
+<div class="sealbox" style="margin:14px 0 4px">${seal([.03,0,0,0],190)}<div class="mid"><div class="big num" style="font-size:46px">0<small>/4</small></div><div class="lbl">today</div></div></div>
+<div class="card"><div class="k"><span class="ms">insights</span>Pattern spotted</div><h3>Wednesdays are your calorie trap.</h3><p>3 of your last 4 misses were Wednesday dinners. Want a 5 PM heads-up on Wednesdays?</p><button class="btn ghost">Yes, warn me Wednesdays</button></div>
+${nav(0)}`});
+
+cover.push({t:'After a real break · comeback',c:'<b>Fresh start.</b> If the streak does break, the screen never shows a sad zero. It shows your best, starts a 3-day comeback with a guaranteed Legendary animal, and makes "beat your record" the new goal.',h:
+`${sb('7:30')}${topBar('Tuesday|Dec 1',0,0)}
+<div class="card" style="margin-top:12px;border-color:rgba(255,90,106,.35);background:radial-gradient(100% 120% at 50% 0%,rgba(255,90,106,.14),transparent 60%),var(--s1)">
+<div class="k" style="color:var(--rd)"><span class="ms">history</span>New month · fresh start</div><h3 style="font-size:22px">Comeback: 3 Perfect Days in a row</h3><p>Pull it off and Maneki the Lucky Cat is yours, guaranteed. Comebacks are the only way to get her.</p>
+<div style="display:flex;gap:12px;align-items:center;margin-top:12px">${medal('phoenix',62)}<div style="display:flex;gap:8px">${[0,0,0].map(()=>`<div style="width:34px;height:34px;border-radius:50%;border:2px dashed #4a2a31"></div>`).join('')}</div></div></div>
+<div class="sealbox" style="margin:12px 0 4px">${seal([0,0,0,0],190)}<div class="mid"><div class="big num" style="font-size:46px">0<small>/4</small></div><div class="lbl">day 1 of 3</div></div></div>
+<div class="card"><div class="k"><span class="ms">emoji_events</span>Your record</div><h3>41 days. You've done it before.</h3><p>You're 41 Perfect Days from a new personal best.</p></div>
+${nav(0)}`});
+
+/* ---------------- INNER SCREENS ---------------- */
+function bars(vals,col,h=60){const m=Math.max(...vals);return `<svg width="100%" height="${h}" viewBox="0 0 240 ${h}" preserveAspectRatio="none" aria-hidden="true">${vals.map((v,i)=>{const bh=v/m*(h-4);return `<rect x="${i*10+1}" y="${h-bh}" width="7" height="${bh}" rx="2" fill="${col}" opacity="${i<21?1:.25}"/>`}).join('')}</svg>`}
+function spark(vals,col,w=240,h=64){const mn=Math.min(...vals)-.4,mx=Math.max(...vals)+.4;const pts=vals.map((v,i)=>[i*(w/(vals.length-1)),h-(v-mn)/(mx-mn)*h]);const d=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join('');const last=pts[pts.length-1];
+  return `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="sf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".35"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs><path d="${d}L${w} ${h}L0 ${h}Z" fill="url(#sf)"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2"/><circle cx="${last[0]}" cy="${last[1]}" r="4" fill="${col}"/></svg>`}
+const hourly=[0,0,0,0,0,0,0,120,640,410,380,900,520,1210,880,300,260,700,940,1020,440,0,0,0];
+const wts=[178.2,178.0,178.3,177.9,177.6,177.8,177.4,177.5,177.1,177.2,176.9,177.0,176.8,176.6,176.9,176.5,176.4];
+const inner=[];
+inner.push({t:'Today, unfolded · 9:18 PM',c:'<b>Two panes.</b> Left: the Seal, the streak and the countdown, always in view. Right: one tile per habit with its own detail, so you can see exactly why the open one is open and what closing it takes.',h:
+`${sb('9:18')}<div class="innerwrap"><div class="rail"><div class="on"><span class="ms">today</span>Today</div><div><span class="ms">calendar_month</span>Journey</div><div><span class="ms">auto_awesome</span>Stickers</div><div style="margin-top:auto"><span class="ms">settings</span></div></div>
+<div class="innermain">${topBar('Saturday|Oct 31',23,3)}
+<div class="two">
+<div style="display:flex;flex-direction:column;gap:14px">
+<div class="sealbox">${seal([.876,1,1,1],300)}<div class="mid"><div class="big num" style="font-size:66px">3<small>/4</small></div><div class="lbl">closed</div><div class="hint" style="color:var(--st)">1,240 steps from a Perfect Day</div></div></div>
+<div class="card risk" style="margin:0"><div class="k"><span class="ms">timer</span>23-day streak at risk</div><div class="cd num" data-countdown="9719">2:41:59</div><p style="margin-top:6px">One 12-minute walk closes Perfect Day #24.</p><button class="btn" style="background:var(--st)"><span class="ms">directions_walk</span>Start walk</button></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+<div class="tiles">
+<div class="tile" style="border-color:rgba(59,227,143,.4)"><div class="hd"><span class="ic" style="background:var(--st)"><span class="ms">directions_walk</span></span>Steps</div><div class="val num">8,760 <small>/ 10k</small></div>${bars(hourly,C.st,54)}<div class="note">Your best hour was 1 PM. 1,240 to go.</div></div>
+<div class="tile"><div class="hd"><span class="ic" style="background:var(--ca)"><span class="ms">restaurant</span></span>Calories<span class="ms" style="margin-left:auto;color:var(--ca)">lock</span></div><div class="val num">1,380 <small>/ 1,500</small></div>
+<div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mute);margin-top:4px">${[['Breakfast','310'],['Lunch','520'],['Snack','90'],['Dinner','460']].map(m=>`<div style="display:flex;justify-content:space-between"><span>${m[0]}</span><span class="num" style="color:var(--ink)">${m[1]}</span></div>`).join('')}</div><div class="note">Kitchen closed at 8:12 PM · 120 under</div></div>
+<div class="tile"><div class="hd"><span class="ic" style="background:var(--wt)"><span class="ms">monitor_weight</span></span>Weigh-in<span class="chk" style="background:var(--wt);margin-left:auto"><span class="ms">check</span></span></div><div class="val num">176.4 <small>lb</small></div>${spark(wts,C.wt,240,50)}<div class="note"><span class="ms" style="font-size:14px;color:var(--wt)">trending_down</span> 1.8 lb down in 17 days</div></div>
+<div class="tile"><div class="hd"><span class="ic" style="background:var(--ba)"><span class="ms">bathtub</span></span>Bath<span class="chk" style="background:var(--ba);margin-left:auto"><span class="ms">check</span></span></div><div class="val num">8:05 <small>AM</small></div><div class="note" style="margin-top:6px">23 days in a row. Usually between 7:45 and 8:30 AM.</div></div>
+</div>
+<div class="card" style="margin:0;padding:12px 0"><div class="k" style="padding:0 18px 8px">This week</div>${weekStrip(WEEK)}</div>
+</div></div></div></div>`});
+
+inner.push({t:'Journey, unfolded',c:'<b>Identity.</b> Big numbers that tell you who you are ("You close all four 87% of days"), a half-year heatmap where Perfect Days pile up, and an honest look at your weakest habit. People keep behaviours that match how they see themselves.',h:
+`${sb('9:40')}<div class="innerwrap"><div class="rail"><div><span class="ms">today</span>Today</div><div class="on"><span class="ms">calendar_month</span>Journey</div><div><span class="ms">auto_awesome</span>Stickers</div><div style="margin-top:auto"><span class="ms">settings</span></div></div>
+<div class="innermain"><div class="top"><div class="date">Journey<b>You close all four 87% of days.</b></div></div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:14px 22px">${[['24','Current streak','var(--fl)'],['41','Best streak',''],['118','Perfect Days',''],['3','Swaps','#FF8FD0']].map(s=>`<div class="tile" style="padding:12px"><div class="val num" style="color:${s[2]||'var(--ink)'};margin:0">${s[0]}</div><div class="note">${s[1]}</div></div>`).join('')}</div>
+<div class="card" style="margin:0 22px"><div class="k">Last 26 weeks</div><div style="margin-top:10px">${heat()}</div><div style="display:flex;gap:14px;font-size:11px;color:var(--mute);margin-top:8px"><span><span class="dot" style="background:var(--gd)"></span>Perfect Day</span><span><span class="dot" style="background:#FF8FD0"></span>Saved with swaps</span><span><span class="dot" style="background:#2a2f3d"></span>Missed</span></div></div>
+<div class="gap"></div>
+<div class="card" style="margin:0 22px"><div class="k">Hit rate, last 30 days</div>
+${[['st',.93],['ca',.81],['wt',1],['ba',.97]].map(([k,v])=>`<div style="display:grid;grid-template-columns:130px 1fr 44px;gap:10px;align-items:center;margin-top:10px;font-size:13px"><span>${NAME[k]}</span><div class="bar" style="height:8px;border-radius:8px;background:var(--s3);overflow:hidden"><i style="display:block;height:100%;width:${v*100}%;background:${C[k]};border-radius:8px"></i></div><span class="num" style="text-align:right;font-weight:700">${Math.round(v*100)}%</span></div>`).join('')}
+<p style="margin-top:12px;font-size:13px">Calories is the habit standing between you and a 41+ streak. Most misses land on Wednesday dinners.</p></div>
+</div></div>`});
+function heat(){let s='<div style="display:grid;grid-template-columns:repeat(26,1fr);grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:4px">';let seed=7;const rnd=()=>{seed=(seed*9301+49297)%233280;return seed/233280};
+  for(let i=0;i<182;i++){const r=rnd();let c='#E9ECF5';if(i<20)c=r<.55?'#E9ECF5':'#2a2f3d';else if(r<.08)c='#2a2f3d';else if(r<.12)c='#FF8FD0';if(i>=158)c='#E9ECF5';if(i>=176)c='#1a1d26';if(i===175)c='#E9ECF5';s+=`<i style="display:block;aspect-ratio:1;border-radius:4px;background:${c}"></i>`}return s+'</div>'}
+
+inner.push({t:'Sticker album, unfolded',c:'<b>Collection + goal gradient.</b> Every Perfect Day rips a pack; secret cats show only a hint of how to unlock them, so there\'s always a specific one to hunt. Tap any sticker to send it. Milestones get closer and more valuable, and the next one is always in sight, so there\'s always a reason to keep going.',h:
+`${sb('9:41')}<div class="innerwrap"><div class="rail"><div><span class="ms">today</span>Today</div><div><span class="ms">calendar_month</span>Journey</div><div class="on"><span class="ms">auto_awesome</span>Stickers</div><div style="margin-top:auto"><span class="ms">settings</span></div></div>
+<div class="innermain"><div class="top"><div class="date">Purrfect Days · Series 1<b>10 of 24 cats · 3 swaps</b></div></div>
+<div class="card" style="margin:14px 22px 0"><div class="k"><span class="ms">emoji_events</span>Milestones</div>
+<div style="position:relative;display:flex;justify-content:space-between;align-items:center;margin:16px 6px 6px">
+<div style="position:absolute;left:10px;right:10px;top:50%;height:4px;background:var(--s3);border-radius:4px"></div><div style="position:absolute;left:10px;width:30%;top:50%;height:4px;background:var(--gd);border-radius:4px"></div>
+${[['7',1],['14',1],['24',2],['30',0],['50',0],['100',0],['365',0]].map(([d,s])=>`<div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:${s===2?34:26}px;height:${s===2?34:26}px;border-radius:50%;display:grid;place-items:center;background:${s===1?'var(--gd)':s===2?'var(--ink)':'var(--s2)'};color:#000;font:800 12px var(--body);border:2px solid ${s?'transparent':'var(--line)'}">${s===1?'<span class="ms" style="font-size:16px">check</span>':s===2?'<span class="ms" style="font-size:18px;color:var(--gd)">local_fire_department</span>':''}</div><span class="num" style="font:700 12px var(--body);color:${s?'var(--ink)':'var(--mute)'}">${d}</span></div>`).join('')}</div>
+<p style="margin-top:8px">6 days to 30: a holo sticker, guaranteed.</p></div>
+<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px;padding:18px 22px">
+${['gold','ember','koala','jade','tide','flamingo','wolf','obsidian','sphynx','aurora'].map(k=>`<div style="display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center">${medal(k,82)}<span style="font:700 11px var(--body);color:${SEALS[k].rc}">${SEALS[k].n}</span><span style="font:500 10px var(--body);color:var(--mute)">${SEALS[k].b}</span></div>`).join('')}
+${SECRETS.map(([k,n,h])=>`<div style="display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center">${silhouette(k,82)}<span style="font:700 11px var(--body);color:var(--ink)">${n}</span><span style="font:500 10px/1.25 var(--body);color:var(--mute)">${h}</span></div>`).join('')}
+${[0,1].map(()=>`<div style="display:flex;flex-direction:column;align-items:center;gap:4px">${medal('gold',70,1)}<span style="font:600 11px var(--body);color:var(--dim)">???</span></div>`).join('')}
+</div></div></div>`});
+
+/* ---------------- NUDGES ---------------- */
+const nudges=`
+<div class="shot" style="gap:14px"><div class="cap"><span class="tag">7:00 AM</span>Pledge</div>
+<div class="notif"><div class="ap">${miniSeal([0,0,0,0],22)}</div><div><div class="who">Habit Tracker · now</div><b>Day 24 starts now.</b><p>Weigh in first and you're a quarter done before coffee.</p></div></div>
+<div class="cap"><span class="tag">12:30 PM</span>Only if behind your usual pace</div>
+<div class="notif"><div class="ap">${miniSeal([.4,.5,1,1],22)}</div><div><div class="who">Habit Tracker · now</div><b>4,100 steps. You're usually at 6k by now.</b><p>A 15-minute lunch walk catches you up.</p></div></div></div>
+<div class="shot" style="gap:14px"><div class="cap"><span class="tag">9:00 PM</span>At risk</div>
+<div class="notif" style="border-color:rgba(255,90,106,.4)"><div class="ap">${miniSeal([.876,1,1,1],22)}</div><div><div class="who">Habit Tracker · now</div><b>1,240 steps between you and Perfect Day #24.</b><p>Your 23-day streak ends at midnight if this quarter stays open.</p><div style="display:flex;gap:8px;margin-top:10px"><span class="pill" style="background:var(--st);color:#000">Start walk</span><span class="pill">Later</span></div></div></div>
+<div class="cap"><span class="tag">11:00 PM</span>Last call, bath example</div>
+<div class="notif"><div class="ap">${miniSeal([1,1,1,0],22)}</div><div><div class="who">Habit Tracker · now</div><b>Bath is the last quarter. 60 minutes left.</b><p>Already had one? Tap to log it.</p><div style="display:flex;gap:8px;margin-top:10px"><span class="pill" style="background:var(--ba);color:#000">Log bath</span></div></div></div></div>
+<div class="shot" style="gap:14px"><div class="cap">Ongoing notification (optional): the four quarters sit in your status bar all day, so the open ones are always one swipe away.</div>
+<div class="notif" style="align-items:center"><div class="ap">${miniSeal([.64,.48,1,1],22)}</div><div style="flex:1"><div class="who">Habit Tracker · ongoing</div><b>2 of 4 · 3,580 steps · 780 kcal left</b></div></div></div>`;
+
+/* ---------------- WIDGETS ---------------- */
+const CDN='<span data-countdown="9719">2:41:59</span>';
+const WS={
+  am:{t:'7:40',p:[.06,0,1,0],n:1,v:['640','1,500 left','done',''],bar:[.06,0,1,0]},
+  mid:{t:'1:40',p:[.64,.48,1,1],n:2,v:['6,420','780 left','done','done'],bar:[.64,.48,1,1]},
+  eve:{t:'9:18',p:[.876,1,1,1],n:3,v:['1,240 left','1,380','done','done'],bar:[.876,1,1,1],risk:1},
+  done:{t:'9:34',p:[1,1,1,1],n:4,v:['10,120','1,380','done','done'],bar:[1,1,1,1]}
+};
+const streakTxt=s=>s.n===4?'24':'23';
+function flame(s,sz=13){return `<span style="color:${s.risk?C.rd:C.gd};font:700 ${sz}px var(--body)"><span class="ms" style="font-size:${sz+2}px">local_fire_department</span>${s.risk?CDN:streakTxt(s)}</span>`}
+function wSmall(s,z=150){return `<div class="w" style="width:${z}px;height:${z}px;display:grid;place-items:center">${seal(s.p,z-30,{sw:10})}<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">${s.n===4?`<span class="ms" style="font-size:34px;color:#fff">check</span>`:`<span style="font:800 28px/1 var(--display)" class="num">${s.n}/4</span><span style="margin-top:4px">${flame(s,11)}</span>`}</div></div>`}
+function rows(s,showV=true){return KEYS.map((k,i)=>`<div class="wr"><span class="ms" style="color:${C[k]}">${ICON[k]}</span><div class="b"><i style="width:${s.bar[i]*100}%;background:${C[k]};${s.bar[i]>=1?`box-shadow:0 0 8px ${C[k]}`:''}"></i></div>${showV?`<span class="v num" style="${s.bar[i]>=1?'color:var(--ink)':''}">${s.v[i]||'open'}</span>`:''}</div>`).join('')}
+function wList(s,z=150){return `<div class="w" style="width:${z}px;height:${z}px;padding:14px;display:flex;flex-direction:column;justify-content:space-between"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font:700 13px var(--body)">Today</span>${flame(s,12)}</div>${rows(s,false)}</div>`}
+function wWide(s,w=328){return `<div class="w" style="width:${w}px;height:150px;padding:14px 16px;display:flex;align-items:center;gap:14px${s.risk?';border-color:rgba(255,90,106,.4)':''}">
+<div style="position:relative;flex:none">${seal(s.p,112,{sw:10})}<div style="position:absolute;inset:0;display:grid;place-items:center;font:800 24px var(--display)" class="num">${s.n===4?'<span class="ms" style="font-size:30px;color:#fff">check</span>':s.n+'/4'}</div></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">${rows(s)}<div style="font:700 11px var(--body);color:${s.risk?C.rd:s.n===4?C.gd:'var(--mute)'}">${s.n===4?'Perfect Day #24 · 24 days':s.risk?`23-day streak ends in ${CDN}`:'23 days at stake'}</div></div></div>`}
+function wStreak(s,z=150){return `<div class="w" style="width:${z}px;height:${z}px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;${s.risk?'background:radial-gradient(120% 120% at 0% 0%,rgba(255,90,106,.2),transparent 60%),rgba(13,15,20,.94);border-color:rgba(255,90,106,.45)':'background:radial-gradient(120% 120% at 0% 0%,rgba(255,107,87,.16),transparent 60%),rgba(13,15,20,.94)'}">
+<span class="ms" style="font-size:26px;color:${s.risk?C.rd:C.gd}">local_fire_department</span>
+<div><div style="font:800 50px/1 var(--display);letter-spacing:-.03em;color:${s.risk?C.rd:C.gd}" class="num">${streakTxt(s)}</div><div class="wl" style="margin-top:4px;${s.risk?'color:var(--rd)':''}">${s.risk?`ends in ${CDN}`:s.n===4?'days · best 41':'day streak'}</div></div></div>`}
+function wBath(done,z=150){return `<div class="w" style="width:${z}px;height:${z}px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">${done?`<span class="chk" style="width:52px;height:52px;background:var(--ba);box-shadow:0 0 18px rgba(67,211,234,.6)"><span class="ms" style="font-size:30px">check</span></span><span class="wl">Bath · 8:05 AM</span>`:`<div style="position:relative;width:66px;height:66px;display:grid;place-items:center"><svg width="66" height="66" viewBox="0 0 66 66" style="position:absolute;inset:0"><circle cx="33" cy="33" r="30" fill="none" stroke="#43D3EA" stroke-opacity=".18" stroke-width="5"/><circle cx="33" cy="33" r="30" fill="none" stroke="#43D3EA" stroke-width="5" stroke-linecap="round" pathLength="100" stroke-dasharray="40 100" transform="rotate(-90 33 33)" style="filter:drop-shadow(0 0 4px #43D3EA)"/></svg><span class="ms" style="font-size:28px;color:var(--ba)">bathtub</span></div><span class="wl">Hold to log bath</span>`}</div>`}
+function circ(v,col,z=40){const r=16,c=2*Math.PI*r;return `<svg width="${z}" height="${z}" viewBox="0 0 40 40"><circle cx="20" cy="20" r="${r}" fill="none" stroke="${col}" stroke-opacity=".18" stroke-width="4"/>${v>0?`<circle cx="20" cy="20" r="${r}" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${(v*c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 20 20)" ${v>=1?`style="filter:drop-shadow(0 0 4px ${col})"`:''}/>`:''}</svg>`}
+function wStrip(s,w=328){return `<div class="w" style="width:${w}px;height:72px;padding:0 16px;display:flex;align-items:center;gap:14px">${KEYS.map((k,i)=>`<div style="position:relative;width:40px;height:40px;display:grid;place-items:center">${circ(s.p[i],C[k])}<span class="ms" style="position:absolute;font-size:17px;color:${C[k]}">${ICON[k]}</span></div>`).join('')}<div style="margin-left:auto;text-align:right">${flame(s,16)}</div></div>`}
+function wLarge(s){return `<div class="w" style="width:328px;height:328px;padding:18px;display:flex;flex-direction:column${s.risk?';border-color:rgba(255,90,106,.4)':''}">
+<div style="display:flex;justify-content:space-between;align-items:center"><div><div class="wl">Saturday, Oct 31</div><div style="font:700 17px var(--display)">Habit Tracker</div></div><div class="pills"><span class="pill fire" style="${s.risk?'color:var(--rd);background:rgba(255,90,106,.14)':''}"><span class="ms">local_fire_department</span><span class="num">23</span></span><span class="pill ice"><span class="ms">auto_awesome</span>3</span></div></div>
+<div style="display:flex;align-items:center;gap:16px;margin-top:12px"><div style="position:relative;flex:none">${seal(s.p,140,{sw:10})}<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><span style="font:800 34px/1 var(--display)" class="num">${s.n}<span style="font-size:18px;color:var(--dim)">/4</span></span><span class="wl" style="margin-top:3px">closed</span></div></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:11px;min-width:0">${rows(s)}</div></div>
+<div class="card ${s.risk?'risk':''}" style="margin:auto 0 0;padding:10px 12px;border-radius:16px"><div class="k"><span class="ms">timer</span>${s.risk?`Streak ends in <span class="num" style="margin-left:4px">${CDN}</span>`:'Best next move'}</div><p style="margin-top:3px;color:var(--ink);font-weight:600">${s.risk?'1,240 steps · one 12-minute walk closes it.':'20-minute walk now puts you at 8,400.'}</p></div></div>`}
+function coverHome(s,body){return `<div class="dev cover"><div class="app home">${sb(s.t)}<div class="hg"><div style="padding:8px 4px 20px"><div class="clock num">${s.t}</div><div style="font:500 13px var(--body);color:#C9CDD8;margin-top:6px">Sat, October 31</div></div>${body}</div><div class="dock"><i></i><i></i><i></i><i></i></div></div></div>`}
+const widgetCover=[
+ {t:'7:40 AM · bath, no app',c:'<b>Bath from the widget.</b> Press and hold for one second; the aqua ring fills under your thumb and the quarter closes. The small Seal and the strip show the day just starting.',h:coverHome(WS.am,`<div style="display:flex;gap:12px;flex-wrap:wrap">${wBath(false)}${wSmall(WS.am)}${wStrip(WS.am,312)}</div>`)},
+ {t:'1:40 PM · midday',c:'<b>Small Seal, habit list, streak and bath</b> (2×2 each). Colour fills in as Health Connect data arrives; closed quarters glow.',h:coverHome(WS.mid,`<div style="display:flex;gap:12px;flex-wrap:wrap">${wSmall(WS.mid)}${wList(WS.mid)}${wStreak(WS.mid)}${wBath(true)}</div>`)},
+ {t:'9:18 PM · at risk',c:'<b>Evening.</b> After 8 PM the widgets go red where something is still open, and the streak becomes a live countdown to midnight.',h:coverHome(WS.eve,`<div style="display:flex;flex-direction:column;gap:12px">${wWide(WS.eve,312)}<div style="display:flex;gap:12px">${wStreak(WS.eve)}${wSmall(WS.eve)}</div></div>`)},
+ {t:'9:34 PM · Perfect Day',c:'<b>Closed.</b> The Seal lights up in all four colours and glows on your home screen for the rest of the night. Every glance is a small reward.',h:coverHome(WS.done,`<div style="display:flex;flex-direction:column;gap:12px">${wWide(WS.done,312)}<div style="display:flex;gap:12px">${wSmall(WS.done)}${wStreak(WS.done)}</div></div>`)}
+];
+const widgetInner=`<div style="display:flex;flex-direction:column;gap:12px;max-width:760px"><div class="scaler" data-w="760" data-h="820"><div class="dev inner"><div class="app home">${sb('9:18')}
+<div style="position:absolute;top:44px;left:0;right:0;bottom:0;padding:24px 30px">
+<div style="margin-bottom:24px"><div class="clock num" style="font-size:78px">9:18</div><div style="font:500 14px var(--body);color:#C9CDD8;margin-top:6px">Saturday, October 31</div></div>
+<div style="display:grid;grid-template-columns:328px 328px;gap:20px;justify-content:center">
+<div style="display:flex;flex-direction:column;gap:20px">${wLarge(WS.eve)}${wStrip(WS.eve)}</div>
+<div style="display:flex;flex-direction:column;gap:20px">${wWide(WS.eve)}<div style="display:flex;gap:20px">${wStreak(WS.eve,154)}${wBath(true,154)}</div></div>
+</div></div>
+<div class="dock" style="bottom:30px;gap:30px"><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div></div>
+<div class="cap" style="max-width:640px"><span class="tag">Inner home screen · 9:18 PM</span><br><b>The full set unfolded.</b> Large (4×4) is a mini Today screen: Seal, every habit, and the one move left. Next to it: Wide (4×2), Strip (4×1), Streak and Bath (2×2). All seven widgets work on both screens.</div></div>`;
+
+/* ---------------- PLAYBOOK ---------------- */
+const PB=[
+['Zeigarnik effect','Open loops nag at you','Unfinished tasks stick in memory more than finished ones. Four separate quarters means an open one is visible as a gap in a circle that wants to be whole.','The Seal on every screen, every widget, ongoing notification'],
+['Completion ring','A shape you have to close','Rings beat bars because the end state is so obvious. The rainbow full circle only ever appears on a Perfect Day, so it means one thing.','Seal, Perfect Day reveal'],
+['Endowed progress','Start ahead','People given a head start finish more often. The weigh-in is pitched as "an instant 25%", so the day starts moving at 7 AM.','Morning pledge screen, 7 AM notification'],
+['Goal gradient','Speed up near the end','Effort climbs as the finish gets closer. Copy and colour get more urgent as quarters fill, and milestones stay in sight.','Hint text under the Seal, milestone track in the sticker book'],
+['Near-miss framing','Show the gap as effort','"1,240 steps, one 12-minute walk" feels doable; "88%" feels finished. Gaps are always converted into minutes or one action.','Evening screen, 9 PM notification'],
+['Loss aversion','Losing hurts twice as much','Losses weigh about twice as much as equal gains. The streak is framed as something you hold and could lose tonight, with a live countdown.','"Streak at risk" card, countdown, 9 PM and 11 PM nudges'],
+['Variable rewards','Rip the pack','Unpredictable rewards drive more repeat behaviour than fixed ones, and the moment of anticipation before the reveal is the strongest part. A sealed pack you tear open, rarity rays and a NEW! badge make every Perfect Day feel like a pull.','Pack + reveal screens, sticker album'],
+['Commitment & consistency','Say it, then do it','A small public or physical commitment makes people act consistently with it. Holding to pledge each morning is that commitment.','Morning pledge'],
+['Don\'t break the chain','A calendar that lights up','A visible chain of successes becomes something you protect for its own sake.','Journey calendar and heatmap'],
+['Collection + the hunt','24 cats, 6 secret','Every new sticker is a new animated cat breed with a name and a personality. Secret animals show only a hint ("20,000 steps in one day"), turning a vague goal into a specific one to chase. Stickers export to WhatsApp and Instagram, and duplicates become swaps that can save a missed day.','Sticker album, secret slots, swaps pill on every screen'],
+['Fresh start effect','New beginnings feel clean','Mondays and the 1st of the month motivate restarts. A broken streak becomes a comeback quest with a Legendary sticker only comebacks can earn.','Comeback screen'],
+['Identity','"I\'m someone who closes all four"','Behaviour that matches self-image lasts. Stats are phrased about you, not the numbers.','Journey header, record card'],
+];
+
+/* ---------------- render ---------------- */
+function frame(kind,html){return `<div class="dev ${kind}"><div class="app">${html}</div></div>`}
+function scaled(kind,html){const w=kind==='cover'?360:760,h=kind==='cover'?800:820;return `<div class="scaler" data-w="${w}" data-h="${h}">${frame(kind,html)}</div>`}
+document.getElementById('coverRow').innerHTML=cover.map(s=>`<div class="shot">${scaled('cover',s.h)}<div class="cap"><span class="tag">${s.t}</span><br>${s.c}</div></div>`).join('');
+document.getElementById('innerStack').innerHTML=inner.map(s=>`<div style="display:flex;flex-direction:column;gap:12px;max-width:760px">${scaled('inner',s.h)}<div class="cap" style="max-width:640px"><span class="tag">${s.t}</span><br>${s.c}</div></div>`).join('');
+document.getElementById('nudgeRow').innerHTML=nudges;
+document.getElementById('widgetRow').innerHTML=widgetCover.map(w=>`<div class="shot"><div class="scaler" data-w="360" data-h="800">${w.h}</div><div class="cap"><span class="tag">${w.t}</span><br>${w.c}</div></div>`).join('');
+document.getElementById('widgetInner').innerHTML=widgetInner;
+document.getElementById('playbook').innerHTML=PB.map((p,i)=>`<div class="pb"><div class="n">${String(i+1).padStart(2,'0')} · ${p[0]}</div><h3>${p[1]}</h3><p>${p[2]}</p><div class="where">Where: ${p[3]}</div></div>`).join('');
+
+function fit(){document.querySelectorAll('.scaler').forEach(el=>{const w=+el.dataset.w,h=+el.dataset.h;const pw=el.parentElement.clientWidth||w;const s=Math.min(1,pw/w);el.style.height=(h*s)+'px';el.style.width=(w*s)+'px';el.firstElementChild.style.transform=`scale(${s})`})}
+addEventListener('resize',fit);
+
+/* countdowns */
+setInterval(()=>{document.querySelectorAll('[data-countdown]').forEach(el=>{let t=+el.dataset.countdown-1;if(t<0)t=9719;el.dataset.countdown=t;el.textContent=`${Math.floor(t/3600)}:${String(Math.floor(t%3600/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`})},1000);
+
+/* ---------------- LIVE DEMO ---------------- */
+const S0={steps:2140,kcal:0,meals:0,kitchen:false,weighed:false,bath:false,shown:false};
+let S={...S0};
+function prog(){const st=Math.min(1,S.steps/10000);const over=S.kcal>1500;const ca=S.kitchen&&!over&&S.meals>0?1:Math.min(1,S.kcal/1500)*.999;return{p:[st,ca,S.weighed?1:0,S.bath?1:0],over,closed:[st>=1,S.kitchen&&!over&&S.meals>0,S.weighed,S.bath]}}
+function liveHTML(){const {p,over,closed}=prog();const n=closed.filter(Boolean).length;const left=closed.map((c,i)=>c?null:KEYS[i]).filter(Boolean);
+  let hint=n===4?'Perfect Day':n===3?`${left[0]==='st'?(10000-S.steps).toLocaleString()+' steps from a Perfect Day':left[0]==='ca'?'Close the kitchen for a Perfect Day':left[0]==='wt'?'One weigh-in from a Perfect Day':'One bath from a Perfect Day'}`:'Perfect Day #24 is up for grabs';
+  let card='';
+  if(over)card=`<div class="card risk"><div class="k"><span class="ms">timer</span>Over by ${(S.kcal-1500).toLocaleString()} kcal</div><h3>Trade 3 swaps to keep 23 days?</h3><p>You have 3. Duplicates refill them.</p><div style="display:flex;gap:8px"><button class="btn" style="background:#FF8FD0;color:#2a0b1d">Trade 3 swaps</button><button class="btn ghost">Let it go</button></div></div>`;
+  else if(n===3)card=`<div class="card risk"><div class="k"><span class="ms">timer</span>23-day streak at risk</div><div class="cd num" data-countdown="9719">2:41:59</div><h3 style="margin-top:6px">${left[0]==='st'?`One ${Math.max(1,Math.ceil((10000-S.steps)/100))}-minute walk closes it.`:left[0]==='ca'?'Done eating? Close the kitchen.':left[0]==='wt'?'30 seconds on the scale closes it.':'Long-press Bath when you\'re done.'}</h3></div>`;
+  else if(n<3)card=`<div class="card"><div class="k"><span class="ms">bolt</span>Best next move</div><h3>${!S.weighed?'Weigh in: instant quarter.':S.steps<10000?`${(10000-S.steps).toLocaleString()} steps to go, about ${Math.ceil((10000-S.steps)/100)} min of walking.`:'Log your meals in MyFitnessPal.'}</h3></div>`;
+  const rows=[
+    hrow('st',{s:closed[0]?'10,000 reached':`${(10000-S.steps).toLocaleString()} to go`,v:S.steps.toLocaleString(),bar:p[0],done:closed[0]}),
+    hrow('ca',{s:over?`Over by ${(S.kcal-1500).toLocaleString()}`:closed[1]?`Kitchen closed · ${S.kcal.toLocaleString()} sealed`:`${(1500-S.kcal).toLocaleString()} kcal left`+(S.kitchen&&!S.meals?' · log a meal first':''),v:S.kcal.toLocaleString(),bar:Math.min(1,S.kcal/1500),done:closed[1],bad:over}),
+    hrow('wt',{s:S.weighed?'176.4 lb · synced from your scale':'Waiting for your scale',v:'<span style="color:var(--wt)">Now</span>',done:closed[2]}),
+    hrow('ba',{s:S.bath?'Logged just now':'Long-press to log',v:'<span class="ms" style="color:var(--ba)">touch_app</span>',done:closed[3],attr:'id="bathrow" style="cursor:pointer;position:relative;overflow:hidden"'})
+  ].join('');
+  return `${sb('6:30')}${topBar('Saturday|Oct 31',23,3)}<div class="sealbox" style="margin:6px 0 2px">${seal(p,220,{bad:over?1:null})}<div class="mid"><div class="big num">${n}<small>/4</small></div><div class="lbl">closed</div><div class="hint">${hint}</div></div></div>${card}<div class="gap"></div><div class="habits">${rows}</div>${nav(0)}`}
+let packOpened=false,pulled=null;
+function revealHTML(){if(!packOpened)return `${sb('6:31')}${packView(24)}`;
+  if(!pulled){const pool=[['gold',20],['ember',20],['koala',20],['tide',9],['jade',8],['flamingo',8],['obsidian',4],['wolf',3],['sphynx',3],['aurora',5]];let r=Math.random()*100;pulled='gold';for(const [kk,w] of pool){if((r-=w)<0){pulled=kk;break}}}
+  return `${sb('6:31')}${revealView(pulled,{flash:1,isNew:Math.random()<.75})}`}
+const live=document.getElementById('live');
+function render(){const done=prog().closed.every(Boolean);live.innerHTML=`<div class="app">${done?revealHTML():liveHTML()}</div>`;if(!done)bindBath();else if(!packOpened){const pb=document.getElementById('packbtn');pb.addEventListener('click',()=>{pb.classList.add('rip');setTimeout(()=>{packOpened=true;render();try{navigator.vibrate&&navigator.vibrate([30,40,30,40,120])}catch(e){}},480)})}if(done&&navigator.vibrate){try{navigator.vibrate([20,40,20,40,60])}catch(e){}}}
+function bindBath(){const row=document.getElementById('bathrow');if(!row||S.bath)return;let t0=0,raf=0;const fill=document.createElement('i');fill.style.cssText='position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(67,211,234,.22);pointer-events:none';row.appendChild(fill);
+  const step=()=>{const k=Math.min(1,(performance.now()-t0)/900);fill.style.width=k*100+'%';if(k>=1){S.bath=true;render();return}raf=requestAnimationFrame(step)};
+  const down=e=>{e.preventDefault();t0=performance.now();raf=requestAnimationFrame(step)};const up=()=>{cancelAnimationFrame(raf);fill.style.width='0'};
+  row.addEventListener('pointerdown',down);row.addEventListener('pointerup',up);row.addEventListener('pointerleave',up);row.addEventListener('pointercancel',up);}
+const on=(id,f)=>document.getElementById(id).addEventListener('click',()=>{f();render()});
+on('b-steps',()=>{S.steps=Math.min(14000,S.steps+1800)});
+on('b-meal',()=>{S.kcal+=420;S.meals++});
+on('b-kitchen',()=>{S.kitchen=true});
+on('b-weigh',()=>{S.weighed=true});
+on('b-bath',()=>{S.bath=true});
+on('b-reset',()=>{S={...S0};packOpened=false;pulled=null});
+render();fit();
+document.fonts&&document.fonts.ready.then(fit);
+</script>
+</body>
+</html>
