@@ -313,7 +313,7 @@ class ActionsTest {
         app.node("steps-goal-value").assertTextEquals("9,500")
         app.click("kitchen-lock-minus")
         app.waitFor("the kitchen lock to be saved") { app.settings().kitchenLockMinute == 20 * 60 + 15 }
-        app.node("kitchen-lock-value").assertTextEquals("8:15 PM")
+        app.assertTagText("kitchen-lock-value", "8:15 PM")
         shot("56-settings-goals-changed")
 
         app.click("settings-back")
@@ -339,7 +339,7 @@ class ActionsTest {
         app.click("settings-back")
         app.waitTag("today")
         app.waitText(" kg", substring = true)
-        assertFalse(app.exists(hasText(" lb", substring = true)))
+        assertFalse(app.exists(app.hasShownText(" lb", substring = true)))
         shot("58-today-in-kg")
 
         app.openSheet(Habit.WEIGH)

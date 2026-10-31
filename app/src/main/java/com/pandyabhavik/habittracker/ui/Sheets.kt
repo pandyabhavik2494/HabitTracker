@@ -1,6 +1,7 @@
 package com.pandyabhavik.habittracker.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -24,12 +25,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pandyabhavik.habittracker.health.HealthGateway
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -52,6 +57,8 @@ fun HabitSheet(habit: Habit, s: HomeState, onDismiss: () -> Unit) {
         sheetState = sheetState,
         containerColor = C.s1,
         contentColor = C.ink,
+        scrimColor = Color.Black.copy(alpha = 0.6f),
+        sheetMaxWidth = 640.dp,
         modifier = Modifier.testTag("sheet-${habit.name.lowercase()}"),
     ) {
         Column(
@@ -121,7 +128,12 @@ private fun CaloriesSheet(s: HomeState, close: () -> Unit) {
     }
     when {
         s.calorieState == CalorieState.UNDER ->
-            HoldButton("Hold to close the kitchen", haptics = s.settings.haptics) {
+            HoldButton(
+                "Hold to close the kitchen",
+                modifier = habitHold(C.calories),
+                haptics = s.settings.haptics,
+                brush = habitFill(C.calories),
+            ) {
                 a.vm.closeKitchen()
                 close()
             }
@@ -136,7 +148,14 @@ private fun CaloriesSheet(s: HomeState, close: () -> Unit) {
     context.packageManager.getLaunchIntentForPackage("com.myfitnesspal.android")?.let { intent ->
         SheetButton("Open MyFitnessPal", C.s2, C.ink) { runCatching { context.startActivity(intent) } }
     }
-    Text("In MyFitnessPal, turn on Settings › Sharing & Privacy › Health Connect so meals reach this app.", style = T.small)
+    // The setup hint only when meals aren't arriving: no nutrition access, or nothing logged for a few days.
+    val granted by a.vm.granted.collectAsStateWithLifecycle()
+    val grantedChecked by a.vm.grantedChecked.collectAsStateWithLifecycle()
+    val noAccess = grantedChecked && HealthGateway.READ_NUTRITION !in granted
+    val recentMeals = (0L..3L).any { back -> (s.days[d.date.minusDays(back)]?.meals ?: 0) > 0 } || d.meals > 0
+    if (noAccess || !recentMeals) {
+        Text("In MyFitnessPal, turn on Settings › Sharing & Privacy › Health Connect so meals reach this app.", style = T.small)
+    }
 }
 
 @Composable
@@ -155,7 +174,18 @@ private fun WeighSheet(s: HomeState, close: () -> Unit) {
     } ?: Text("Step on your scale. VeSync sends the weigh-in to Health Connect and this quarter closes on its own.", style = T.body)
     var text by remember { mutableStateOf("") }
     val unit = F.unit(s.settings.pounds)
-    Text("Or type it in", style = T.caps)
+    val logged = d.weightKg
+    if (logged != null) {
+        // Saving now replaces today's weigh-in, so say what's there.
+        Text(
+            "Logged ${F.weight(logged, s.settings.pounds)}${d.weighedAt?.let { t -> " at ${F.time(t, s.zone)}" } ?: ""}",
+            style = T.label,
+            modifier = Modifier.testTag("weight-logged"),
+        )
+        Caps("Correct it")
+    } else {
+        Caps("Or type it in")
+    }
     OutlinedTextField(
         value = text,
         onValueChange = { v -> text = v.filter { it.isDigit() || it == '.' || it == ',' }.take(6) },
@@ -194,7 +224,12 @@ private fun BathSheet(s: HomeState, close: () -> Unit) {
     val d = s.today
     if (d.bathAt == null) {
         Text("Not logged yet today.", style = T.body)
-        HoldButton("Hold to log bath", haptics = s.settings.haptics) {
+        HoldButton(
+            "Hold to log bath",
+            modifier = habitHold(C.bath),
+            haptics = s.settings.haptics,
+            brush = habitFill(C.bath),
+        ) {
             a.vm.logBath()
             close()
         }
@@ -203,12 +238,37 @@ private fun BathSheet(s: HomeState, close: () -> Unit) {
         Text("Logged at ${F.time(d.bathAt!!, s.zone)}.", style = T.h2)
         val opened = s.packs.any { it.date == d.date.toString() && it.openedAt != null }
         if (!(s.perfect && opened)) {
-            SheetButton("Remove today's bath", C.s2, C.ink, Modifier.testTag("undo-bath")) {
+            OutlinedSheetButton("Remove today's bath", C.risk, Modifier.testTag("undo-bath")) {
                 a.vm.undoBath()
                 close()
             }
         }
     }
+}
+
+/** Tints a [HoldButton] with its habit's colour so it reads as the sheet's main action, not a disabled pill. */
+private fun habitHold(color: Color): Modifier = Modifier
+    .clip(CircleShape)
+    .border(1.5.dp, color, CircleShape)
+    .drawWithContent {
+        drawContent()
+        drawRect(color.copy(alpha = 0.22f))
+    }
+
+private fun habitFill(color: Color): Brush = Brush.horizontalGradient(listOf(color.copy(alpha = 0.55f), color.copy(alpha = 0.9f)))
+
+/** A secondary, destructive-looking action: outlined, coloured text, no fill. */
+@Composable
+private fun OutlinedSheetButton(text: String, color: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    androidx.compose.foundation.layout.Box(
+        modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .clip(CircleShape)
+            .border(1.dp, color.copy(alpha = 0.6f), CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Text(text, style = T.label.copy(color = color)) }
 }
 
 @Composable

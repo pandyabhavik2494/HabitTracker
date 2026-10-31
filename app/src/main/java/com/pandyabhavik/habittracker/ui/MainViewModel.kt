@@ -55,8 +55,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun healthStatus(): HealthStatus = repo.health.status()
 
+    /** False until the first [refreshGranted] has answered, so screens don't show "no access" for a set that isn't read yet. */
+    private val _grantedChecked = MutableStateFlow(false)
+    val grantedChecked: StateFlow<Boolean> = _grantedChecked.asStateFlow()
+
     fun refreshGranted() {
-        viewModelScope.launch { _health.value = runCatching { repo.health.granted() }.getOrDefault(emptySet()) }
+        viewModelScope.launch {
+            _health.value = runCatching { repo.health.granted() }.getOrDefault(emptySet())
+            _grantedChecked.value = true
+        }
     }
 
     fun sync() {
@@ -72,6 +79,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _pulling.value = true
             try {
                 repo.sync()
+                refreshGranted()
                 // Long enough for the spinner to read as "checked", even when the sync is instant.
                 delay(350)
             } finally {

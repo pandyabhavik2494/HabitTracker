@@ -24,14 +24,16 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.DonutLarge
+import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Today
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -64,8 +66,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 enum class Tab(val label: String, val icon: ImageVector, val key: String) {
-    TODAY("Today", Icons.Rounded.Today, "today"),
-    JOURNEY("Journey", Icons.Rounded.CalendarMonth, "journey"),
+    TODAY("Today", Icons.Rounded.DonutLarge, "today"),
+    JOURNEY("Journey", Icons.Rounded.Insights, "journey"),
     STICKERS("Stickers", Icons.Rounded.AutoAwesome, "stickers"),
 }
 
@@ -81,10 +83,13 @@ class AppActions(
     val wide: Boolean,
     /** Main's scope: outlives tab switches, so a snackbar and its action survive the screen that showed it. */
     private val scope: CoroutineScope,
+    /** True while the pack overlay is up: messages would only sit on top of the reveal. */
+    private val packOpen: () -> Boolean = { false },
 ) {
     /** Shows a message; [onAction] runs if the user taps [actionLabel] before it times out. */
     fun showMessage(message: String, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
         scope.launch {
+            if (packOpen()) return@launch
             val r = snackbar.showSnackbar(
                 message,
                 actionLabel = actionLabel,
@@ -151,7 +156,13 @@ private fun Main(
         askNotifications = askNotifications,
         wide = wide,
         scope = scope,
+        packOpen = { packId != null },
     )
+
+    // Opening a pack clears whatever message was showing ("Bath logged" over the reveal).
+    LaunchedEffect(packId) {
+        if (packId != null) snackbar.currentSnackbarData?.dismiss()
+    }
 
     BackHandler(enabled = settingsOpen) { settingsOpen = false }
     BackHandler(enabled = !settingsOpen && tab != Tab.TODAY && packId == null) { tab = Tab.TODAY }
@@ -190,14 +201,42 @@ private fun Main(
                 val id = packId ?: shownPackId
                 if (id != null) PackFlow(id, s, onClose = { packId = null })
             }
-            // After the pack overlay, so messages draw on top of it.
-            SnackbarHost(
-                snackbar,
+            // After the pack overlay, so messages draw on top of it. Centred over the content pane
+            // (right of the rail) on wide screens, above the bottom bar on narrow ones.
+            Box(
                 Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = if (wide) 16.dp else 80.dp),
-            )
+                    .fillMaxSize()
+                    .then(
+                        if (wide) {
+                            Modifier
+                                .windowInsetsPadding(WindowInsets.safeDrawing)
+                                .padding(start = if (packId == null) 77.dp else 0.dp)
+                        } else {
+                            Modifier
+                                .navigationBarsPadding()
+                                .padding(bottom = if (settingsOpen || packId != null) 0.dp else 64.dp)
+                        },
+                    ),
+                contentAlignment = Alignment.BottomCenter,
+            ) {
+                SnackbarHost(
+                    snackbar,
+                    Modifier
+                        .widthIn(max = 560.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                ) { data ->
+                    Snackbar(
+                        data,
+                        shape = RoundedCornerShape(14.dp),
+                        containerColor = Color(0xFF1A1C24),
+                        contentColor = C.ink,
+                        actionColor = C.bath,
+                        actionContentColor = C.bath,
+                        dismissActionContentColor = C.mute,
+                    )
+                }
+            }
         }
     }
 
@@ -211,10 +250,7 @@ private fun Main(
             packId = first.id
         }
     }
-    LaunchedEffect(s.settings.lastSyncError) {
-        val e = s.settings.lastSyncError ?: return@LaunchedEffect
-        scope.launch { snackbar.showSnackbar(e, withDismissAction = true) }
-    }
+    // Sync errors are shown in Today's sync line and in Settings, not as a snackbar.
 }
 
 @Composable
@@ -293,15 +329,24 @@ private fun Rail(tab: Tab, settingsOpen: Boolean, onTab: (Tab?) -> Unit) {
             }
         }
         Spacer(Modifier.weight(1f))
-        Box(
+        Column(
             Modifier
+                .padding(vertical = 6.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(if (settingsOpen) C.s3 else Color.Transparent)
                 .clickable { onTab(null) }
-                .padding(10.dp)
+                .padding(horizontal = 6.dp, vertical = 4.dp)
                 .testTag("tab-settings"),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Icon(Icons.Rounded.Settings, "Settings", tint = if (settingsOpen) C.ink else C.dim)
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(if (settingsOpen) C.s3 else Color.Transparent)
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+            ) {
+                Icon(Icons.Rounded.Settings, null, tint = if (settingsOpen) C.ink else C.dim, modifier = Modifier.size(22.dp))
+            }
+            Text("Settings", style = T.small.copy(color = if (settingsOpen) C.ink else C.dim, fontSize = 11.sp))
         }
     }
 }

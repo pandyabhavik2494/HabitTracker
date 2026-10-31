@@ -4,8 +4,13 @@ import android.content.Context
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import android.util.Log
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeTestRule
@@ -13,6 +18,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
@@ -28,6 +34,7 @@ import com.pandyabhavik.habittracker.core.Cat
 import com.pandyabhavik.habittracker.core.Day
 import com.pandyabhavik.habittracker.core.Habit
 import com.pandyabhavik.habittracker.core.Packs
+import com.pandyabhavik.habittracker.core.Streaks
 import com.pandyabhavik.habittracker.data.DayEntity
 import com.pandyabhavik.habittracker.data.HabitRepository
 import com.pandyabhavik.habittracker.data.PackEntity
@@ -46,7 +53,8 @@ import kotlin.random.Random
 /**
  * The moments the device tests put the app in. Every scene has 60 days of history behind it (mostly
  * Perfect Days, two saved with swaps, a few misses, weight trending down, baths around 8 AM), 10 stickers
- * and 3 swaps, and a fixed clock (the app reads the time through [HabitRepository.clock]).
+ * and 3 swaps, and a fixed clock (the app reads the time through [HabitRepository.clock]). The saved,
+ * comeback and pattern scenes change that history (and the swaps) to match their story.
  */
 enum class Scene(val hour: Int, val minute: Int) {
     /** A fresh install: onboarding. */
@@ -79,13 +87,19 @@ enum class Scene(val hour: Int, val minute: Int) {
     /** 6:30 PM: steps and bath closed, calories under, the weigh-in open: 2/4. */
     WEIGH_OPEN(18, 30),
 
-    /** 8:05 AM, the morning after swaps saved yesterday. */
+    /** 8:05 AM, the morning after 3 swaps saved yesterday: 1 swap left. */
     SAVED(8, 5),
 
-    /** 10:20 AM, day 1 of a comeback: yesterday broke a 22-day streak. */
+    /**
+     * 10:20 AM, day 1 of a comeback: yesterday's missed bath broke the 23-day streak (only 2 swaps, not
+     * enough to save it). The record shown is that streak.
+     */
     COMEBACK(10, 20),
 
-    /** 9:05 AM on a Wednesday, after 4 Wednesdays in a row over the calorie limit. */
+    /**
+     * 9:05 AM on a Wednesday, after 4 Wednesdays in a row over the calorie limit. Swaps saved the oldest;
+     * the last three broke the streak, so it is 6 days (since last Wednesday).
+     */
     PATTERN(9, 5),
     ;
 
@@ -126,15 +140,29 @@ object TestData {
         51 to Gap(Habit.CALORIES, saved = false),
     )
 
-    /** Four Wednesdays in a row over the calorie limit (swaps saved them), so the pattern card shows. */
+    /**
+     * Four Wednesdays in a row over the calorie limit, so the pattern card shows. Swaps saved the oldest; with
+     * fewer than 3 left, the other three broke the streak, so it is 6 days now. The bath slipped 15 days ago, as in the base
+     * history, so the bath run (14 days) matches the other scenes.
+     */
     val PATTERN_GAPS: Map<Int, Gap> = mapOf(
-        7 to Gap(Habit.CALORIES, saved = true),
-        14 to Gap(Habit.CALORIES, saved = true),
-        21 to Gap(Habit.CALORIES, saved = true),
+        7 to Gap(Habit.CALORIES, saved = false),
+        14 to Gap(Habit.CALORIES, saved = false),
+        15 to Gap(Habit.BATH, saved = false),
+        21 to Gap(Habit.CALORIES, saved = false),
         28 to Gap(Habit.CALORIES, saved = true),
         40 to Gap(Habit.STEPS, saved = false),
-        52 to Gap(Habit.BATH, saved = false),
     )
+
+    /** The pattern scene's streak: the days since last Wednesday's miss. */
+    const val PATTERN_STREAK = 6
+
+    /**
+     * The comeback's history: the base one a day further back (so the 23-day streak ran up to the day
+     * before yesterday), then yesterday's bath missed with no swaps to save it.
+     */
+    val COMEBACK_GAPS: Map<Int, Gap> =
+        BASE_GAPS.mapKeys { it.key + 1 } + (1 to Gap(Habit.BATH, saved = false))
 
     private val zone: ZoneId get() = ZoneId.systemDefault()
 
@@ -269,7 +297,7 @@ object TestData {
 
     fun gapsOf(scene: Scene): Map<Int, Gap> = when (scene) {
         Scene.SAVED -> BASE_GAPS + (1 to Gap(Habit.CALORIES, saved = true))
-        Scene.COMEBACK -> BASE_GAPS + (1 to Gap(Habit.BATH, saved = false))
+        Scene.COMEBACK -> COMEBACK_GAPS
         Scene.PATTERN -> PATTERN_GAPS
         else -> BASE_GAPS
     }
@@ -287,10 +315,22 @@ object TestData {
             lastSyncError = null,
         )
         return when (scene) {
-            Scene.COMEBACK -> base.copy(comebackFrom = d, comebackRecord = STREAK - 1)
+            // Spent 3 of 4 on yesterday; the saved card and the swap pill both say 1 left.
+            Scene.SAVED -> base.copy(swaps = SAVED_SWAPS_LEFT)
+            // Fewer than 3 swaps is why yesterday broke the streak. The record is the best run in the
+            // history, the way the app works it out when a streak breaks.
+            Scene.COMEBACK -> base.copy(swaps = 2, comebackFrom = d, comebackRecord = bestRun(d, gapsOf(scene)))
+            // Fewer than 3 swaps, so last Wednesday's miss broke the streak instead of being saved.
+            Scene.PATTERN -> base.copy(swaps = 2)
             else -> base
         }
     }
+
+    const val SAVED_SWAPS_LEFT = 1
+
+    /** The longest run of Perfect or saved days in the seeded history. */
+    fun bestRun(today: LocalDate, gaps: Map<Int, Gap>): Int =
+        Streaks.best((1..HISTORY_DAYS).associate { today.minusDays(it.toLong()) to pastDay(today, it, gaps[it]) })
 
     /** Clears everything and puts the app in [scene]. Returns the scene's (fixed) time. */
     suspend fun seed(repo: HabitRepository, scene: Scene): LocalDateTime {
@@ -335,6 +375,9 @@ object TestData {
 
     fun rollOf(seed: Int): Cat = Packs.roll(Random(seed), null)
 }
+
+/** A no-break (U+00A0) or narrow no-break (U+202F) space as a plain one, for comparing times like "8:05 AM". */
+fun norm(s: String): String = s.replace('\u00A0', ' ').replace('\u202F', ' ')
 
 /** Screenshots, saved where CI pulls them from. */
 object Shots {
@@ -442,6 +485,69 @@ class AppDriver(val compose: ComposeTestRule) {
 
     // ---- Finding things -----------------------------------------------------------------------------
 
+    /** The texts a node shows, as [hasText] reads them. */
+    private fun shown(node: SemanticsNode): List<String> {
+        val c = node.config
+        val texts = if (SemanticsProperties.Text in c) c[SemanticsProperties.Text].map { it.text } else emptyList()
+        val edit = if (SemanticsProperties.EditableText in c) listOf(c[SemanticsProperties.EditableText].text) else emptyList()
+        return texts + edit
+    }
+
+    /**
+     * Like [hasText], but a no-break or narrow no-break space counts as a plain one, so "8:05 AM" matches
+     * however the app spaces its times.
+     */
+    fun hasShownText(text: String, substring: Boolean = false): SemanticsMatcher {
+        val want = norm(text)
+        return SemanticsMatcher("shows '$text'${if (substring) " (in part)" else ""}") { n ->
+            shown(n).any { val got = norm(it); if (substring) got.contains(want) else got == want }
+        }
+    }
+
+    /** Asserts the node tagged [tag] shows exactly [expected] (spaces normalised as in [hasShownText]). */
+    fun assertTagText(tag: String, expected: String) {
+        val got = shown(node(tag).fetchSemanticsNode())
+        if (got.map(::norm) != listOf(norm(expected))) throw AssertionError("'$tag' should show '$expected' but shows $got")
+    }
+
+    // ---- Scrolling ----------------------------------------------------------------------------------
+
+    private fun scrollables(within: String) = compose.onAllNodes(
+        hasScrollAction() and SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange) and
+            (hasTestTag(within) or hasAnyAncestor(hasTestTag(within))),
+        useUnmergedTree = true,
+    )
+
+    /** The column that scrolls the screen tagged [within]: the vertical scroller with the most to scroll. */
+    private fun scroller(within: String): Int? {
+        val nodes = runCatching { scrollables(within).fetchSemanticsNodes() }.getOrDefault(emptyList())
+        return nodes.indices.maxByOrNull { nodes[it].config[SemanticsProperties.VerticalScrollAxisRange].maxValue() }
+    }
+
+    /** How far the screen tagged [within] is scrolled, in px; null when nothing in it scrolls. */
+    fun scrollPosition(within: String): Float? {
+        idle()
+        val i = scroller(within) ?: return null
+        return runCatching { scrollables(within)[i].fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value() }.getOrNull()
+    }
+
+    /**
+     * Scrolls the screen tagged [within] down by most of its height, through the scroller's own scroll
+     * action (so it works on the inner screen's panes as well as the cover screen's column). Returns false
+     * when nothing moved: it all fits, as it may on the inner screen.
+     */
+    fun scrollDown(within: String, fraction: Float = 0.8f): Boolean {
+        val before = scrollPosition(within) ?: return false
+        val i = scroller(within) ?: return false
+        val n = scrollables(within)[i]
+        val node = n.fetchSemanticsNode()
+        if (node.config[SemanticsProperties.VerticalScrollAxisRange].maxValue() <= 0f) return false
+        val dy = node.size.height * fraction
+        runCatching { n.performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, dy) } }
+            .onFailure { Log.w(TestData.TAG, "Scrolling $within: ${it.message}") }
+        return scrollPosition(within) != before
+    }
+
     fun exists(tag: String): Boolean = exists(hasTestTag(tag))
 
     fun exists(matcher: SemanticsMatcher): Boolean =
@@ -455,7 +561,7 @@ class AppDriver(val compose: ComposeTestRule) {
 
     /** At least one node shows [text] (several may: the pack flow sits on top of Today, for one). */
     fun assertText(text: String, substring: Boolean = false) {
-        if (!exists(hasText(text, substring = substring))) {
+        if (!exists(hasShownText(text, substring = substring))) {
             throw AssertionError("Expected the text '$text'${if (substring) " (in part)" else ""} on screen")
         }
     }
@@ -475,7 +581,7 @@ class AppDriver(val compose: ComposeTestRule) {
     fun waitGone(tag: String, timeoutMs: Long = 10_000) = waitFor("'$tag' to go away", timeoutMs) { !exists(tag) }
 
     fun waitText(text: String, substring: Boolean = false, timeoutMs: Long = 10_000) =
-        waitFor("the text '$text'", timeoutMs) { exists(hasText(text, substring = substring)) }
+        waitFor("the text '$text'", timeoutMs) { exists(hasShownText(text, substring = substring)) }
 
     /** Scrolls [tag] into view when it sits in a scrolling column; does nothing when it doesn't. */
     fun scrollTo(tag: String): SemanticsNodeInteraction {

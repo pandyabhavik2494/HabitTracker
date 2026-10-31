@@ -12,7 +12,10 @@ import java.util.Locale
 import kotlin.math.abs
 
 object F {
-    private val clock = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
+    /** A no-break space: keeps "AM"/"PM" on the line with its time. */
+    const val NBSP = '\u00A0'
+
+    private val clock = DateTimeFormatter.ofPattern("h:mm${NBSP}a", Locale.US)
     val weekday: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE", Locale.US)
     val monthDay: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d", Locale.US)
     val month: DateTimeFormatter = DateTimeFormatter.ofPattern("MMMM", Locale.US)
@@ -38,7 +41,7 @@ object F {
             ?: return null
         val d = weightValue(kg, s.settings.pounds) - weightValue(ref, s.settings.pounds)
         if (abs(d) < 0.05) return "steady this week"
-        return String.format(Locale.US, "%s %.1f this week", if (d < 0) "down" else "up", abs(d))
+        return String.format(Locale.US, "%s %.1f%s%s this week", if (d < 0) "down" else "up", abs(d), NBSP, unit(s.settings.pounds))
     }
 
     fun habitName(h: Habit, s: HomeState): String = when (h) {
@@ -81,7 +84,15 @@ object F {
         val mm = m % 60
         val ampm = if (h < 12) "AM" else "PM"
         val h12 = if (h % 12 == 0) 12 else h % 12
-        return String.format(Locale.US, "%d:%02d %s", h12, mm, ampm)
+        return String.format(Locale.US, "%d:%02d%s%s", h12, mm, NBSP, ampm)
+    }
+
+    /** "7:58–8:14 AM", or "11:50 AM–12:10 PM" across noon; minutes after midnight. */
+    fun minutesRange(lo: Int, hi: Int): String {
+        val a = minutesOfDay(lo)
+        val b = minutesOfDay(hi)
+        val sameHalf = (lo / 60 < 12) == (hi / 60 < 12)
+        return if (sameHalf) a.substringBefore(NBSP) + "–" + b else "$a–$b"
     }
 
     fun dayLabel(d: LocalDate, today: LocalDate): String = when (d) {

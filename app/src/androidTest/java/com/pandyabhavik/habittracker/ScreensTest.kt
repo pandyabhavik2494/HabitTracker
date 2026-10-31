@@ -57,6 +57,18 @@ class ScreensTest {
 
     private fun shot(name: String) = app.shot(name)
 
+    /**
+     * Scrolls the screen tagged [screen] until [to] is in view, and further down by a screenful if that
+     * didn't move it (the inner screen shows more at once). True when the screen moved, so a screenshot
+     * now differs from the one before.
+     */
+    private fun scrolledDown(screen: String, to: String): Boolean {
+        val top = app.scrollPosition(screen)
+        app.scrollTo(to)
+        if (app.scrollPosition(screen) == top) app.scrollDown(screen)
+        return app.scrollPosition(screen) != top
+    }
+
     @Test
     fun onboarding() {
         app.open(Scene.FRESH)
@@ -107,15 +119,16 @@ class ScreensTest {
         app.waitTag("next-move")
         app.node("pledge-card").assertDoesNotExist()
         shot("08-today-midday")
-        app.scrollTo("sync-line")
         app.assertText("pull down to sync", substring = true)
-        shot("09-today-midday-scrolled")
+        // The cover screen scrolls down to its habit rows and sync line. The inner screen's two panes may
+        // fit whole; then there's nothing new to show and the shot is left out.
+        if (scrolledDown("today", to = "sync-line")) shot("09-today-midday-scrolled")
 
         app.open(Scene.RISK)
         app.waitText("3/4")
         app.waitTag("risk-card")
         // The clock is fixed at 9:18:00 PM: 2 h 42 min to midnight.
-        app.node("countdown").assertTextEquals("2:42:00")
+        app.assertTagText("countdown", "2:42:00")
         app.assertText("${TestData.STREAK}-day streak at risk".uppercase())
         shot("10-today-risk")
     }
@@ -177,7 +190,8 @@ class ScreensTest {
         app.waitGone("pack-flow")
         app.waitTag("perfect-card")
         app.assertText("Perfect Day #${TestData.STREAK + 1}".uppercase())
-        app.assertText("PERFECT DAY")
+        // The Seal's own words on a Perfect Day are copy that changes; the day itself is what matters.
+        assertNotNull(app.today()?.perfectAt)
         shot("17-today-perfect")
     }
 
@@ -186,18 +200,26 @@ class ScreensTest {
         app.open(Scene.SAVED)
         app.waitTag("saved-card")
         app.assertText("3 swaps saved ${TestData.STREAK} days")
+        // Yesterday spent 3; the card's text and the swap pill both show what's left.
+        assertEquals(TestData.SAVED_SWAPS_LEFT, app.settings().swaps)
+        assertTrue(app.exists(hasText("${TestData.SAVED_SWAPS_LEFT}") and hasAnyAncestor(hasTestTag("swaps-pill"))))
         shot("18-today-saved-by-swaps")
 
         app.open(Scene.COMEBACK)
         app.waitTag("comeback-card")
         app.assertText("DAY 1 OF 3")
         app.assertText("Comeback: 3 Perfect Days in a row")
+        // The record is the streak yesterday broke, the longest in the history.
+        assertEquals(TestData.STREAK, app.settings().comebackRecord)
+        app.assertText("${TestData.STREAK} days", substring = true)
         shot("19-today-comeback")
 
         app.open(Scene.PATTERN)
         app.waitTag("pattern-card")
         app.assertText("Wednesdays are your calorie trap.")
         app.assertText("4 of your last 4 Wednesdays missed it.", substring = true)
+        // Those misses broke the streak: it runs from last Wednesday.
+        assertTrue(app.exists(hasText("${TestData.PATTERN_STREAK}") and hasAnyAncestor(hasTestTag("streak-pill"))))
         shot("20-today-pattern")
     }
 
@@ -213,8 +235,7 @@ class ScreensTest {
         val month = YearMonth.from(Scene.MIDDAY.now())
         app.assertText(F.monthYear.format(month))
         shot("21-journey")
-        app.scrollTo("hit-rates")
-        shot("22-journey-scrolled")
+        if (scrolledDown("journey", to = "hit-rates")) shot("22-journey-scrolled")
 
         compose.onNode(hasContentDescription("Previous month"), useUnmergedTree = true).performScrollTo().performClick()
         app.waitText(F.monthYear.format(month.minusMonths(1)))
@@ -250,13 +271,14 @@ class ScreensTest {
         app.openSettings()
         app.node("steps-goal-value").assertTextEquals("10,000")
         app.node("calorie-goal-value").assertTextEquals("1,500 kcal")
-        app.node("kitchen-lock-value").assertTextEquals("8:30 PM")
+        app.assertTagText("kitchen-lock-value", "8:30 PM")
         for (section in listOf("GOALS", "NOTIFICATIONS", "FEEL", "HEALTH CONNECT")) app.assertText(section)
         shot("27-settings")
-        app.scrollTo("n-last")
-        shot("28-settings-notifications")
+        if (scrolledDown("settings", to = "n-last")) shot("28-settings-notifications")
+        val before = app.scrollPosition("settings")
         app.text("Habit Tracker 1.", substring = true).performScrollTo()
-        shot("29-settings-bottom")
+        // Only when the bottom wasn't in the last shot already.
+        if (app.scrollPosition("settings") != before) shot("29-settings-bottom")
         val s = runBlocking { app.repo.settings.current() }
         assertEquals(10_000, s.stepsGoal)
         assertNotNull(s.lastSync)

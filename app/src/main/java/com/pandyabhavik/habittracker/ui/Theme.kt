@@ -39,7 +39,8 @@ object C {
         Habit.BATH -> bath
     }
 
-    val iridescent = listOf(steps, bath, weigh, calories, steps)
+    // Orange never meets green directly: that blend passes through yellow.
+    val iridescent = listOf(steps, bath, weigh, calories, weigh, bath, steps)
 }
 
 @OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)

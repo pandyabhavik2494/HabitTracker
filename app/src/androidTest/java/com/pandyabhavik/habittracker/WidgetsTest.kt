@@ -395,12 +395,13 @@ class WidgetsTest {
 
     /**
      * Glance draws asynchronously (and can push a stale frame first), so this waits until every widget
-     * shows its expected text. Null when they all do, else which ones don't and what they show instead.
+     * shows its expected text (in part, with no-break spaces read as plain ones). Null when they all do, else which ones don't and what they show instead.
      */
     private fun awaitContent(expect: Map<Placed, String>, timeoutMs: Long): String? {
         val end = SystemClock.uptimeMillis() + timeoutMs
         while (true) {
-            val wrong = expect.filter { (w, text) -> shown(w).none { it.contains(text) } }
+            // Times may come with a no-break space before AM/PM (and the countdown between "2h" and "42m").
+            val wrong = expect.filter { (w, text) -> shown(w).none { norm(it).contains(norm(text)) } }
             if (wrong.isEmpty()) return null
             if (SystemClock.uptimeMillis() > end) {
                 return wrong.entries.joinToString("; ") { (w, text) -> "${w.label} should show '$text' but shows ${shown(w)}" }

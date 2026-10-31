@@ -242,7 +242,9 @@ private fun HeatGrid(s: HomeState) {
     val today = s.now.toLocalDate()
     val end = today.plusDays((6 - today.dayOfWeek.value % 7).toLong())
     val start = end.minusWeeks(26).plusDays(1)
-    val first = s.settings.firstDay ?: today
+    // Days before tracking began have no data: drawn as faint outlines, not as misses. Tracking starts at the
+    // later of the first stored day and settings.firstDay.
+    val first = listOfNotNull(s.days.keys.minOrNull(), s.settings.firstDay).maxOrNull() ?: today
     Panel(Modifier.fillMaxWidth().testTag("heat-grid")) {
         Caps("Last 26 weeks")
         Spacer(Modifier.height(10.dp))
@@ -251,20 +253,23 @@ private fun HeatGrid(s: HomeState) {
                 for (col in 0 until 26) {
                     val d = start.plusDays((col * 7 + row).toLong())
                     val day = s.days[d]
+                    val noData = d.isBefore(first) && day?.perfectAt == null && day?.savedWithSwaps != true
                     val color = when {
                         d.isAfter(today) -> Color.Transparent
                         day?.perfectAt != null || (d == today && s.perfect) -> C.ink
                         day?.savedWithSwaps == true -> C.swap
-                        d.isBefore(first) -> C.s2
+                        noData -> Color.Transparent
                         d == today -> C.s3
-                        else -> Color(0xFF2A2F3E)
+                        else -> MissedCell
                     }
+                    val cell = RoundedCornerShape(3.dp)
                     Box(
                         Modifier
                             .weight(1f)
                             .aspectRatio(1f)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(color),
+                            .clip(cell)
+                            .background(color)
+                            .then(if (noData) Modifier.border(1.dp, NoDataCell, cell) else Modifier),
                     )
                 }
             }
@@ -273,15 +278,25 @@ private fun HeatGrid(s: HomeState) {
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Legend(C.ink, "Perfect Day")
             Legend(C.swap, "Saved with swaps")
-            Legend(Color(0xFF2A2F3E), "Missed")
+            Legend(MissedCell, "Missed")
+            Legend(Color.Transparent, "No data", outline = NoDataCell)
         }
     }
 }
 
+private val MissedCell = Color(0xFF2A2F3E)
+private val NoDataCell = Color(0xFF1C1F28)
+
 @Composable
-private fun Legend(color: Color, text: String) {
+private fun Legend(color: Color, text: String, outline: Color? = null) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(9.dp).clip(CircleShape).background(color))
+        Box(
+            Modifier
+                .size(9.dp)
+                .clip(CircleShape)
+                .background(color)
+                .then(if (outline != null) Modifier.border(1.dp, outline, CircleShape) else Modifier),
+        )
         Spacer(Modifier.width(6.dp))
         Text(text, style = T.small.copy(fontSize = 11.sp))
     }

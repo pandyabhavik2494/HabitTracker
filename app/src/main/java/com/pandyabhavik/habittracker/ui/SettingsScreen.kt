@@ -1,20 +1,23 @@
 package com.pandyabhavik.habittracker.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -53,18 +56,25 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
     val vm = a.vm
     val st = s.settings
     val granted by vm.granted.collectAsStateWithLifecycle()
+    val grantedChecked by vm.grantedChecked.collectAsStateWithLifecycle()
     val syncing by vm.syncing.collectAsStateWithLifecycle()
     val context = LocalContext.current
     LaunchedEffect(Unit) { vm.refreshGranted() }
     Column(
         Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .navigationBarsPadding()
             .testTag("settings"),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(Modifier.padding(top = 12.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Stays put while the panels scroll underneath.
+        Row(
+            Modifier
+                .widthIn(max = 720.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(top = 12.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Box(
                 Modifier.size(40.dp).clip(CircleShape).clickable { onBack() }.testTag("settings-back"),
                 contentAlignment = Alignment.Center,
@@ -72,7 +82,21 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
             Spacer(Modifier.width(6.dp))
             Text("Settings", style = T.title)
         }
-        Column(Modifier.widthIn(max = 640.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .testTag("settings-scroll"),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+        Column(
+            Modifier
+                .widthIn(max = 720.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             Panel(Modifier.fillMaxWidth()) {
                 Caps("Goals")
                 Stepper("Daily steps", F.n(st.stepsGoal), "steps-goal",
@@ -98,7 +122,7 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
                 Toggle("Midday pace, only if behind · 12:30 PM", st.notifyMidday, "n-midday") { v -> vm.updateSettings { it.copy(notifyMidday = v) } }
                 Toggle("At risk · 9:00 PM", st.notifyRisk, "n-risk") { v -> vm.updateSettings { it.copy(notifyRisk = v) } }
                 Toggle("Last call · 11:00 PM", st.notifyLastCall, "n-last") { v -> vm.updateSettings { it.copy(notifyLastCall = v) } }
-                Toggle("The four quarters in the status bar all day", st.ongoing, "n-ongoing") { v ->
+                Toggle("Show today's progress in the status bar", st.ongoing, "n-ongoing") { v ->
                     if (v) a.askNotifications()
                     vm.updateSettings { it.copy(ongoing = v) }
                 }
@@ -125,18 +149,36 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
                     HealthStatus.NOT_INSTALLED -> Text("Health Connect isn't installed.", style = T.body)
                     HealthStatus.NEEDS_UPDATE -> Text("Health Connect needs an update.", style = T.body)
                     HealthStatus.AVAILABLE -> {
-                        Access("Steps (Google Health / Fit)", HealthGateway.READ_STEPS in granted)
-                        Access("Food (MyFitnessPal)", HealthGateway.READ_NUTRITION in granted)
-                        Access("Weight (VeSync scale)", HealthGateway.READ_WEIGHT in granted)
-                        Access("Sync in the background", HealthGateway.READ_IN_BACKGROUND in granted)
+                        // Null while the granted set is still being read: neutral, not a red "missing".
+                        fun ok(p: String): Boolean? = if (grantedChecked) p in granted else null
+                        Access("Steps (Google Health / Fit)", ok(HealthGateway.READ_STEPS))
+                        Access("Food (MyFitnessPal)", ok(HealthGateway.READ_NUTRITION))
+                        Access("Weight (VeSync scale)", ok(HealthGateway.READ_WEIGHT))
+                        Access("Sync in the background", ok(HealthGateway.READ_IN_BACKGROUND))
                     }
                 }
                 Spacer(Modifier.height(8.dp))
+                val noAccess = status != HealthStatus.AVAILABLE ||
+                    (grantedChecked && HealthGateway.CORE.none { it in granted })
+                val failure = when {
+                    syncing -> null
+                    noAccess -> "Last sync failed: no Health Connect access"
+                    st.lastSyncError != null -> "Last sync failed: ${st.lastSyncError}"
+                    else -> null
+                }
                 Text(
-                    "${if (syncing) "Syncing…" else F.ago(st.lastSync, System.currentTimeMillis())}. Syncs when you open the app, when you pull down on Today, and every 15 minutes in the background.",
+                    when {
+                        syncing -> "Syncing…"
+                        failure != null -> failure
+                        else -> "${F.ago(st.lastSync, System.currentTimeMillis())}."
+                    },
+                    style = T.small.copy(color = if (failure != null) C.risk else C.mute),
+                    modifier = Modifier.testTag("settings-sync-status"),
+                )
+                Text(
+                    "Syncs when you open the app, when you pull down on Today, and every 15 minutes in the background.",
                     style = T.small,
                 )
-                st.lastSyncError?.let { Text(it, style = T.small.copy(color = C.risk)) }
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Pill2(if (status == HealthStatus.AVAILABLE) "Allow access" else "Get Health Connect", Modifier.weight(1f)) { a.askHealth() }
@@ -149,6 +191,9 @@ fun SettingsScreen(s: HomeState, onBack: () -> Unit) {
             }
             Text("Habit Tracker ${BuildConfig.VERSION_NAME}", style = T.small, modifier = Modifier.padding(8.dp))
             Spacer(Modifier.height(24.dp))
+            // Keeps the version line clear of the gesture bar / taskbar.
+            Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+        }
         }
     }
 }
@@ -189,7 +234,16 @@ private fun Toggle(label: String, on: Boolean, tag: String, onChange: (Boolean) 
         Switch(
             checked = on,
             onCheckedChange = onChange,
-            colors = SwitchDefaults.colors(checkedTrackColor = C.bath, checkedThumbColor = Color(0xFF04141A)),
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = C.bath,
+                checkedBorderColor = C.bath,
+                checkedIconColor = C.bath,
+                uncheckedThumbColor = Color(0xFFB8BDCB),
+                uncheckedTrackColor = C.s3,
+                uncheckedBorderColor = Color(0xFF8D93A6),
+                uncheckedIconColor = C.s3,
+            ),
             modifier = Modifier.testTag(tag),
         )
     }
@@ -201,27 +255,33 @@ private fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> U
         Modifier
             .clip(RoundedCornerShape(999.dp))
             .background(C.s2)
+            .border(1.dp, C.line, RoundedCornerShape(999.dp))
             .padding(3.dp),
     ) {
         options.forEachIndexed { i, o ->
             Box(
                 Modifier
                     .clip(RoundedCornerShape(999.dp))
-                    .background(if (i == selected) C.s3 else Color.Transparent)
+                    .background(if (i == selected) C.bath else Color.Transparent)
                     .clickable { onSelect(i) }
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .padding(horizontal = 18.dp, vertical = 6.dp)
                     .testTag("unit-$o"),
-            ) { Text(o, style = T.label.copy(color = if (i == selected) C.ink else C.mute)) }
+            ) { Text(o, style = T.label.copy(color = if (i == selected) Color(0xFF04141A) else C.mute)) }
         }
     }
 }
 
 @Composable
-private fun Access(label: String, ok: Boolean) {
+private fun Access(label: String, ok: Boolean?) {
     Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(
-            if (ok) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline, null,
-            tint = if (ok) C.steps else C.risk, modifier = Modifier.size(18.dp),
+            if (ok == false) Icons.Rounded.ErrorOutline else Icons.Rounded.CheckCircle, null,
+            tint = when (ok) {
+                true -> C.steps
+                false -> C.risk
+                null -> C.dim
+            },
+            modifier = Modifier.size(18.dp),
         )
         Spacer(Modifier.width(8.dp))
         Text(label, style = T.body.copy(color = C.ink))

@@ -43,11 +43,15 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -69,6 +73,7 @@ import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -82,6 +87,8 @@ import com.pandyabhavik.habittracker.core.Habit
 import com.pandyabhavik.habittracker.core.Rules
 import com.pandyabhavik.habittracker.data.HomeState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
@@ -92,12 +99,34 @@ fun TodayScreen(s: HomeState) {
     val a = LocalActions.current
     val pulling by a.vm.pulling.collectAsStateWithLifecycle()
     var sheet by rememberSaveable { mutableStateOf<Habit?>(null) }
+    val ptr = rememberPullToRefreshState()
+    val scope = rememberCoroutineScope()
+    // The box only hides its disc when isRefreshing flips back to false. Make sure it also goes away
+    // when the sync ends (or never started), so an empty disc can't stay parked over the tiles.
+    LaunchedEffect(pulling) { if (!pulling) ptr.animateToHidden() }
     PullToRefreshBox(
         isRefreshing = pulling,
-        onRefresh = { a.vm.pullToRefresh() },
+        onRefresh = {
+            a.vm.pullToRefresh()
+            scope.launch {
+                delay(400)
+                a.vm.pulling.first { !it }
+                ptr.animateToHidden()
+            }
+        },
+        state = ptr,
         modifier = Modifier
             .fillMaxSize()
             .testTag("today"),
+        indicator = {
+            PullToRefreshDefaults.Indicator(
+                state = ptr,
+                isRefreshing = pulling,
+                containerColor = C.s2,
+                color = C.bath,
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
+        },
     ) {
         if (a.wide) TodayWide(s) { sheet = it } else TodayCover(s) { sheet = it }
     }
@@ -142,11 +171,19 @@ private fun TodayWide(s: HomeState, onHabit: (Habit) -> Unit) {
             .padding(horizontal = 20.dp),
     ) {
         TopBar(s, showSettings = false)
+        // With one card or none under the Seal the left pane runs out long before the tiles do, so the
+        // week strip and the sync line move under the cards to balance the two panes.
+        val weekLeft = cardCount(s) <= 1
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
             Column(Modifier.weight(0.47f), horizontalAlignment = Alignment.CenterHorizontally) {
                 BigSeal(s, 300.dp)
                 Spacer(Modifier.height(8.dp))
                 Cards(s, Modifier.fillMaxWidth())
+                if (weekLeft) {
+                    Spacer(Modifier.height(10.dp))
+                    WeekStrip(s)
+                    SyncLine(s)
+                }
             }
             Column(Modifier.weight(0.53f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -157,8 +194,10 @@ private fun TodayWide(s: HomeState, onHabit: (Habit) -> Unit) {
                     WeighTile(s, Modifier.weight(1f)) { onHabit(Habit.WEIGH) }
                     BathTile(s, Modifier.weight(1f)) { onHabit(Habit.BATH) }
                 }
-                WeekStrip(s)
-                SyncLine(s)
+                if (!weekLeft) {
+                    WeekStrip(s)
+                    SyncLine(s)
+                }
             }
         }
         Spacer(Modifier.height(24.dp))
@@ -205,9 +244,10 @@ fun BigSeal(s: HomeState, size: Dp) {
     Seal(s.progress, size, Modifier.testTag("seal"), pulse = pulse, bad = bad) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(size * 0.62f)) {
             if (s.perfect) {
+                // The Perfect Day number lives on the card below; the ring just says it's sealed.
                 Icon(Icons.Rounded.Check, null, tint = C.ink, modifier = Modifier.size(size * 0.2f))
-                Text("PERFECT DAY", style = T.caps.copy(color = C.ink))
-                Text("#${s.dayNumber}", style = T.big)
+                Text("4/4", style = T.big)
+                Text("SEALED", style = T.caps.copy(color = C.ink))
             } else {
                 Text(
                     buildAnnotatedString {
@@ -222,14 +262,61 @@ fun BigSeal(s: HomeState, size: Dp) {
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    s.sealLine,
-                    style = T.small.copy(color = if (open.size == 1) C.of(open.first()) else C.mute, fontSize = 12.sp),
+                    sealCaption(s, open),
+                    style = T.small.copy(
+                        color = if (open.size == 1) C.of(open.first()) else C.mute,
+                        fontSize = 12.sp,
+                        lineBreak = LineBreak.Heading,
+                    ),
                     textAlign = TextAlign.Center,
                     maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
     }
+}
+
+/**
+ * The line inside the Seal: short, plain English. With one quarter left, "Perfect Day" is held
+ * together so "Day" never ends up alone on the second line.
+ */
+private fun sealCaption(s: HomeState, open: List<Habit>): String {
+    val pd = "Perfect${F.NBSP}Day"
+    if (open.size != 1) return s.sealLine
+    return when (open.first()) {
+        Habit.STEPS -> "${F.n((s.goals.steps - s.today.steps).coerceAtLeast(0))} steps to a $pd"
+        Habit.CALORIES -> when (s.calorieState) {
+            CalorieState.NOT_LOGGED -> "Log a meal for a $pd"
+            CalorieState.OVER -> s.sealLine
+            else -> "Close the kitchen for a $pd"
+        }
+        Habit.WEIGH -> "A weigh-in away from a $pd"
+        Habit.BATH -> "A bath away from a $pd"
+    }
+}
+
+/** Joins the last two words with a no-break space, so a short last word never sits alone on a line. */
+private fun String.keepLastWord(): String {
+    val i = lastIndexOf(' ')
+    return if (i <= 0 || length - i > 12) this else substring(0, i) + F.NBSP + substring(i + 1)
+}
+
+/** How many full-size cards [Cards] shows (the small pledged note doesn't count). Keep in step with it. */
+private fun cardCount(s: HomeState): Int {
+    val hour = s.now.hour
+    val showPledge = s.today.pledgedAt == null && hour < 12 && !s.perfect
+    return listOf(
+        s.unopened.isNotEmpty(),
+        s.perfect,
+        s.comebackFrom != null && !s.perfect,
+        s.savedYesterday && hour < 14,
+        s.atRisk,
+        showPledge,
+        s.pattern != null && hour < 14 && !s.atRisk,
+        !s.atRisk && !showPledge && s.move != null,
+        s.settings.lastSync == null && s.settings.lastSyncError != null,
+    ).count { it }
 }
 
 /** The context cards: the pack, comeback, saved streak, risk, pledge, a pattern, the best next move. */
@@ -238,6 +325,7 @@ fun Cards(s: HomeState, modifier: Modifier) {
     val a = LocalActions.current
     val hour = s.now.hour
     val showPledge = s.today.pledgedAt == null && hour < 12 && !s.perfect
+    val pledged = s.today.pledgedAt != null && hour < 12 && !s.perfect
     Column(modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         s.unopened.firstOrNull()?.let { PackWaiting(s, it.id) }
         if (s.perfect) PerfectCard(s)
@@ -245,6 +333,7 @@ fun Cards(s: HomeState, modifier: Modifier) {
         if (s.savedYesterday && hour < 14) SavedCard(s)
         if (s.atRisk) RiskCard(s)
         if (showPledge) PledgeCard(s)
+        if (pledged) PledgedNote()
         val p = s.pattern
         if (p != null && hour < 14 && !s.atRisk) PatternCard(s, p.habit, p.weekday, p.misses, p.of)
         val move = s.move
@@ -252,7 +341,7 @@ fun Cards(s: HomeState, modifier: Modifier) {
             Panel(Modifier.fillMaxWidth().testTag("next-move")) {
                 Caps("Best next move", icon = Icons.Rounded.Bolt)
                 Spacer(Modifier.height(6.dp))
-                Text(move.title, style = T.h2)
+                Text(move.title.keepLastWord(), style = T.h2)
                 move.detail?.let {
                     Spacer(Modifier.height(4.dp))
                     Text(it, style = T.body)
@@ -348,7 +437,7 @@ private fun RiskCard(s: HomeState) {
                 .testTag("countdown"),
         )
         Spacer(Modifier.height(4.dp))
-        Text(s.move?.title ?: "${open.size} quarters still open.", style = T.h2)
+        Text((s.move?.title ?: "${open.size} quarters still open.").keepLastWord(), style = T.h2)
         Text("Close it and Perfect Day #${s.dayNumber} earns you a sticker pack.", style = T.body)
         Spacer(Modifier.height(10.dp))
         when (open.firstOrNull()) {
@@ -410,6 +499,31 @@ private fun PledgeCard(s: HomeState) {
     }
 }
 
+/** What the pledge card turns into once held: a small, quiet confirmation for the morning. */
+@Composable
+private fun PledgedNote() {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(C.weigh.copy(alpha = 0.12f))
+            .border(1.dp, C.weigh.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+            .testTag("pledged-note"),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CheckDot(C.weigh, 22.dp)
+        Spacer(Modifier.width(10.dp))
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(color = C.ink)) { append("Pledged.") }
+                append(" Close all four today.")
+            },
+            style = T.small.copy(fontSize = 13.sp),
+        )
+    }
+}
+
 @Composable
 private fun ComebackCard(s: HomeState) {
     Panel(
@@ -431,7 +545,7 @@ private fun ComebackCard(s: HomeState) {
                         .size(30.dp)
                         .clip(CircleShape)
                         .then(
-                            if (i < done) Modifier.background(Brush.linearGradient(C.iridescent))
+                            if (i < done) Modifier.background(Brush.linearGradient(listOf(C.bath, C.weigh, C.swap)))
                             else Modifier.border(1.5.dp, C.dim, CircleShape),
                         ),
                 )
@@ -490,7 +604,10 @@ private fun PatternCard(s: HomeState, habit: Habit, day: DayOfWeek, misses: Int,
                     .height(46.dp)
                     .clip(CircleShape)
                     .background(C.s2)
-                    .clickable { a.vm.warnMe(day, habit) }
+                    .clickable {
+                        a.vm.warnMe(day, habit)
+                        a.showMessage("We'll nudge you ${name}s at 5${F.NBSP}PM.")
+                    }
                     .testTag("warn-me"),
                 contentAlignment = Alignment.Center,
             ) {
@@ -591,17 +708,32 @@ fun SyncLine(s: HomeState) {
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Rounded.Sync, null, tint = C.dim, modifier = Modifier.size(14.dp))
+        val error = s.settings.lastSyncError?.takeIf { !syncing }
+        Icon(Icons.Rounded.Sync, null, tint = if (error != null) C.risk else C.dim, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(4.dp))
         Text(
             when {
                 syncing -> "Syncing with Health Connect…"
-                s.settings.lastSyncError != null -> s.settings.lastSyncError
+                error != null -> error
                 else -> "${F.ago(s.settings.lastSync, now)} · pull down to sync"
             },
-            style = T.small.copy(color = if (s.settings.lastSyncError != null && !syncing) C.risk else C.dim),
-            modifier = if (s.settings.lastSyncError != null) Modifier.clickable { a.askHealth() } else Modifier,
+            style = T.small.copy(color = if (error != null) C.risk else C.dim),
+            modifier = Modifier.weight(1f, fill = false),
         )
+        if (error != null) {
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Open settings",
+                style = T.small.copy(color = C.ink, fontWeight = androidx.compose.ui.text.font.FontWeight(700)),
+                maxLines = 1,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(C.s2)
+                    .clickable { a.askHealth() }
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .testTag("sync-fix"),
+            )
+        }
     }
 }
 
@@ -645,13 +777,13 @@ private fun Tile(
 }
 
 @Composable
-private fun BigValue(value: String, unit: String) {
+private fun BigValue(value: String, unit: String, color: Color = C.ink) {
     Text(
         buildAnnotatedString {
             append(value)
             withStyle(SpanStyle(color = C.dim, fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight(600))) { append(" $unit") }
         },
-        style = T.big.copy(fontSize = 28.sp),
+        style = T.big.copy(fontSize = 28.sp, color = color),
         maxLines = 1,
     )
 }
@@ -716,10 +848,10 @@ private fun CaloriesTile(s: HomeState, modifier: Modifier, onClick: () -> Unit) 
         Spacer(Modifier.height(8.dp))
         Text(
             when (s.calorieState) {
-                CalorieState.CLOSED -> d.kitchenClosedAt?.let { "Kitchen closed at ${F.time(it, s.zone)} · ${F.n(s.goals.calories - d.calories)} under" }
-                    ?: "Kitchen locked at ${F.minutesOfDay(s.goals.kitchenLockMinute)} · ${F.n(s.goals.calories - d.calories)} under"
+                CalorieState.CLOSED -> d.kitchenClosedAt?.let { "Kitchen closed at ${F.time(it, s.zone)}.\n${F.n(s.goals.calories - d.calories)}${F.NBSP}kcal under." }
+                    ?: "Kitchen locked at ${F.minutesOfDay(s.goals.kitchenLockMinute)}.\n${F.n(s.goals.calories - d.calories)}${F.NBSP}kcal under."
                 CalorieState.OVER -> "${F.n(d.calories - s.goals.calories)} kcal over. Tomorrow's a new day."
-                CalorieState.UNDER -> "${F.n(s.goals.calories - d.calories)} left. Kitchen locks at ${F.minutesOfDay(s.goals.kitchenLockMinute)}."
+                CalorieState.UNDER -> "${F.n(s.goals.calories - d.calories)} left.\nKitchen locks at ${F.minutesOfDay(s.goals.kitchenLockMinute)}."
                 CalorieState.NOT_LOGGED -> "Log meals in MyFitnessPal; they sync here."
             },
             style = T.small.copy(color = if (s.calorieState == CalorieState.OVER) C.risk else C.mute),
@@ -732,10 +864,22 @@ private fun WeighTile(s: HomeState, modifier: Modifier, onClick: () -> Unit) {
     val d = s.today
     val history = s.days.entries.sortedBy { it.key }.mapNotNull { it.value.weightKg }.takeLast(30)
     Tile(Habit.WEIGH, "Weigh-in", s, modifier, onClick) {
-        val latest = d.weightKg ?: history.lastOrNull()
+        val todayDate = s.now.toLocalDate()
+        // Before today's weigh-in, the last one shows dimmed and dated so it doesn't read as today's.
+        val last = if (d.weightKg != null) null else s.days.entries
+            .filter { it.key.isBefore(todayDate) && it.value.weightKg != null }
+            .maxByOrNull { it.key }
+        val latest = d.weightKg ?: last?.value?.weightKg
         if (latest != null) {
             val v = String.format(Locale.US, "%.1f", F.weightValue(latest, s.settings.pounds))
-            BigValue(v, F.unit(s.settings.pounds))
+            BigValue(v, F.unit(s.settings.pounds), color = if (d.weightKg != null) C.ink else C.dim)
+            if (d.weightKg == null && last != null) {
+                Text(
+                    "Last: ${F.dayLabel(last.key, todayDate).let { if (it == "Yesterday") "yesterday" else it }}",
+                    style = T.small,
+                    modifier = Modifier.testTag("weigh-last"),
+                )
+            }
         } else {
             Text("Step on the scale", style = T.h2)
         }
@@ -753,7 +897,7 @@ private fun WeighTile(s: HomeState, modifier: Modifier, onClick: () -> Unit) {
                 )
             }
         } else {
-            Text(if (d.weighedAt == null) "Instant quarter: 30 seconds closes it." else "Weighed ${F.time(d.weighedAt!!, s.zone)}.", style = T.small)
+            Text(if (d.weighedAt == null) "Not yet today." else "Weighed ${F.time(d.weighedAt!!, s.zone)}.", style = T.small)
         }
     }
 }
@@ -793,7 +937,7 @@ private fun BathTile(s: HomeState, modifier: Modifier, onClick: () -> Unit) {
         onLongPress = if (d.bathAt == null) ({ logBath(a, s, view) }) else null,
     ) {
         if (d.bathAt != null) {
-            val parts = F.time(d.bathAt!!, s.zone).split(" ")
+            val parts = F.time(d.bathAt!!, s.zone).split(F.NBSP)
             BigValue(parts[0], parts.getOrElse(1) { "" })
         } else {
             Text("Not yet", style = T.big.copy(fontSize = 28.sp, color = C.dim))
@@ -831,7 +975,7 @@ private fun usualBath(s: HomeState): String? {
     if (minutes.size < 5) return null
     val lo = minutes[minutes.size / 4]
     val hi = minutes[minutes.size * 3 / 4]
-    return "Usually between ${F.minutesOfDay(lo)} and ${F.minutesOfDay(hi)}."
+    return "Usually ${F.minutesRange(lo, hi)}."
 }
 
 @Composable

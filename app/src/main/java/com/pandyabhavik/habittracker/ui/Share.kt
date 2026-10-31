@@ -45,7 +45,7 @@ object Share {
     private fun sendWhatsapp(context: Context, cat: Cat, s: HomeState, uri: Uri, number: Int?) {
         val day = dayNumber(s, number)
         val text = (if (day != null) "Perfect Day #$day 🔥 " else "") +
-            "Just pulled ${cat.name} the ${cat.breed}. ${s.owned.size} of ${Catalog.SIZE} collected."
+            "Just pulled ${if (cat.breed == cat.name) "a ${cat.name}" else "${cat.name} the ${cat.breed}"}. ${s.owned.size} of ${Catalog.SIZE} collected."
         val intent = Intent(Intent.ACTION_SEND)
             .setType("image/png")
             .putExtra(Intent.EXTRA_STREAM, uri)
@@ -121,7 +121,7 @@ object Share {
         }
         val ny = cy + stickerSize / 2 + w * 0.14f
         c.drawText(cat.name, cx, ny, name)
-        c.drawText(cat.breed.uppercase(), cx, ny + w * 0.06f, small)
+        if (cat.breed != cat.name) c.drawText(cat.breed.uppercase(), cx, ny + w * 0.06f, small)
         val streak = Paint(small).apply { color = 0xFFFF6B57.toInt(); textSize = w * 0.04f }
         val day = dayNumber(s, number)
         c.drawText(if (day != null) "PERFECT DAY #$day  ·  HABIT TRACKER" else "HABIT TRACKER", cx, ny + w * 0.13f, streak)

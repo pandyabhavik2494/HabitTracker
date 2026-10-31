@@ -96,13 +96,18 @@ fun AlbumScreen(s: HomeState) {
             }
             Spacer(Modifier.height(14.dp))
         }
+        val secrets = Catalog.all.count { it.rarity == Rarity.SECRET }
+        val legendary = Catalog.all.count { it.rarity == Rarity.LEGENDARY }
         Text(
-            "Odds per pack: ${Packs.ODDS_TEXT}. Secret cats and Maneki never come from packs.",
+            "Odds per pack: ${Packs.ODDS_TEXT}. The ${secrets + legendary} silhouette cats " +
+                "($secrets Secret, $legendary Legendary) never come from packs: each shows how to unlock it.",
             style = T.small,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(Modifier.height(24.dp))
+        // Clear of the navigation bar or taskbar, so the last row is never cut off.
+        Spacer(Modifier.navigationBarsPadding())
     }
     open?.let { id -> StickerSheet(Catalog[id], s) { open = null } }
 }
@@ -158,13 +163,16 @@ private fun Slot(cat: Cat, s: HomeState, modifier: Modifier, phase: Float, onOpe
         )
         Text(
             when {
-                owned != null -> cat.breed
+                // "Ragdoll / Ragdoll" says it twice: show the rarity instead.
+                owned != null -> if (cat.breed != cat.name) cat.breed else cat.rarity.label
                 hidden -> cat.hint ?: ""
                 else -> cat.rarity.label
             },
-            style = T.small.copy(fontSize = 11.sp),
+            style = T.small.copy(fontSize = 11.sp, lineHeight = 14.sp),
             maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
@@ -213,7 +221,7 @@ private fun Milestones(s: HomeState) {
             Modifier
                 .fillMaxWidth()
                 .drawBehind {
-                    val y = 13.dp.toPx()
+                    val y = 15.dp.toPx()
                     drawLine(C.s3, Offset(0f, y), Offset(size.width, y), strokeWidth = 3.dp.toPx())
                     val idx = points.indexOf(s.streak).coerceAtLeast(0)
                     val frac = if (points.size <= 1) 0f else idx.toFloat() / (points.size - 1)
@@ -225,15 +233,18 @@ private fun Milestones(s: HomeState) {
                 val current = p == s.streak
                 val done = p < s.streak || (current && p in Streaks.MILESTONES)
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        Modifier
-                            .size(if (current) 30.dp else 24.dp)
-                            .clip(CircleShape)
-                            .background(if (current) C.ink else if (done) C.ink else C.s2)
-                            .border(1.dp, if (done || current) C.ink else C.line, CircleShape),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (done && !current) Icon(Icons.Rounded.Check, null, tint = Color(0xFF0A0B10), modifier = Modifier.size(16.dp))
+                    // Every dot sits in the same 30dp slot, so the bigger current dot doesn't push its label down.
+                    Box(Modifier.size(30.dp), contentAlignment = Alignment.Center) {
+                        Box(
+                            Modifier
+                                .size(if (current) 30.dp else 24.dp)
+                                .clip(CircleShape)
+                                .background(if (current) C.ink else if (done) C.ink else C.s2)
+                                .border(1.dp, if (done || current) C.ink else C.line, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (done && !current) Icon(Icons.Rounded.Check, null, tint = Color(0xFF0A0B10), modifier = Modifier.size(16.dp))
+                        }
                     }
                     Spacer(Modifier.height(4.dp))
                     Text("$p", style = T.small.copy(color = if (current) C.ink else C.mute, fontSize = 11.sp, fontFamily = Display))
@@ -272,7 +283,7 @@ private fun StickerSheet(cat: Cat, s: HomeState, onDismiss: () -> Unit) {
             StickerWithGlow(cat, 200.dp, 0f)
             Spacer(Modifier.height(12.dp))
             Text(cat.name, style = T.hero.copy(fontSize = 36.sp))
-            Text(cat.breed.uppercase(), style = T.caps.copy(letterSpacing = 3.sp))
+            if (cat.breed != cat.name) Text(cat.breed.uppercase(), style = T.caps.copy(letterSpacing = 3.sp))
             Spacer(Modifier.height(4.dp))
             Text("“${cat.line}”", style = T.body.copy(color = C.ink, fontStyle = FontStyle.Italic), textAlign = TextAlign.Center)
             Spacer(Modifier.height(8.dp))

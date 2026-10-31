@@ -102,7 +102,7 @@ const [,, mockPath, extraPath, outPath] = process.argv;
       const rar = id === 'maneki' ? 'Legendary' : RAR(m.r);
       const holo = rar === 'Holo' || rar === 'Legendary';
       const one = sil => {
-        host.innerHTML = stickerSvg(k, sil ? { fur: '#2a2f40', ...m.c } : m.c, sil ? { ...pose, bg: ['#1d2130', '#12141c'] } : pose, 100, holo && !sil, sil);
+        host.innerHTML = stickerSvg(k, sil ? { fur: '#3b4259', ...m.c } : m.c, sil ? { ...pose, bg: ['#1d2130', '#12141c'] } : pose, 100, holo && !sil, sil);
         return walk(host.firstElementChild);
       };
       result[id] = { name: m.n, breed: m.b, rarity: rar, line: (m.line || '').replace(/"/g, ''), bg: pose.bg, art: one(false), sil: one(true) };
