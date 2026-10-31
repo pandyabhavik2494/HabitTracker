@@ -170,7 +170,7 @@ class ActionsTest {
         app.assertText("Did you log your meals today?")
         shot("46-meals-sheet")
         app.scrollTo("meals-yes").performClick()
-        app.waitFor("meals to be marked logged") { app.today()?.mealsLoggedAt != null }
+        app.waitFor("meals to be marked logged") { app.today()?.kitchenClosedAt != null }
         app.waitGone("sheet-calories")
         app.waitText("3/4")
         if (!app.wide) app.assertText("Logged 6:30 PM")
@@ -179,7 +179,7 @@ class ActionsTest {
         app.openSheet(Habit.CALORIES)
         app.assertText("Meals logged at 6:30 PM.")
         app.scrollTo("undo-meals").performClick()
-        app.waitFor("meals to be unmarked") { app.today()?.mealsLoggedAt == null }
+        app.waitFor("meals to be unmarked") { app.today()?.kitchenClosedAt == null }
         app.waitGone("sheet-calories")
         app.waitText("2/4")
     }
@@ -190,13 +190,13 @@ class ActionsTest {
         app.waitText("2/4")
         val quick = if (app.wide) "tile-meals-yes" else "meals-quick"
         app.scrollTo(quick).performClick()
-        app.waitFor("meals to be marked logged") { app.today()?.mealsLoggedAt != null }
+        app.waitFor("meals to be marked logged") { app.today()?.kitchenClosedAt != null }
         app.waitText("3/4")
         app.waitText("Meals logged")
         app.waitGone(quick)
         shot("47b-meals-quick")
         app.text("Undo").performClick()
-        app.waitFor("the undo to unmark meals") { app.today()?.mealsLoggedAt == null }
+        app.waitFor("the undo to unmark meals") { app.today()?.kitchenClosedAt == null }
         app.waitText("2/4")
         app.waitTag(quick)
     }
