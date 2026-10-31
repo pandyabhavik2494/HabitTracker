@@ -9,10 +9,10 @@ Object.assign(BREEDS,{
   cosmo:{n:'Cosmo',b:'Abyssinian',r:'Holo',c:{fur:'#C07A3E',fur2:'#E3A066',dark:'#9A5A28',mark:'#7A4018',ears:'big',face:'narrow',eyes:'#B7E05A',glow:1,muzzle:'#F6D9B8'}},
   ragdoll:{n:'Ragdoll',b:'Ragdoll',r:'Secret',c:{fur:'#F3EADB',fur2:'#FFF8EC',fluff:1,fluffC:'#FFF6E8',pattern:'points',mark:'#6B5444',eyes:'#5BB8FF',muzzle:'#FFF8EC',round:1}},
   persian:{n:'Snow Queen',b:'Persian',r:'Secret',c:{fur:'#F2ECF4',fur2:'#FFFFFF',face:'wide',fluff:1,fluffC:'#FFFFFF',round:1,eyes:'#E08A2A',muzzle:'#FFFFFF',nose:'#FF9FB6',whisk:'rgba(90,90,120,.45)',crown:1}},
-  savannah:{n:'Zuri',b:'Savannah',r:'Secret',c:{fur:'#E8C07A',fur2:'#F6DCA6',dark:'#C99A4E',mark:'#2E1E10',mark2:'#2E1E10',pattern:'spots',ears:'big',face:'narrow',eyes:'#C9D45A',muzzle:'#FFF4E0'}},
+  savannah:{n:'Zuri',b:'Savannah',r:'Secret',c:{fur:'#DDA070',fur2:'#F5CFAE',dark:'#B97F4C',mark:'#2E1E10',mark2:'#2E1E10',pattern:'spots',ears:'big',face:'narrow',eyes:'#A6D46A',muzzle:'#FFF2E8'}},
   norwegian:{n:'Bjorn',b:'Norwegian Forest',r:'Secret',c:{fur:'#7A6450',fur2:'#A08870',dark:'#5A4434',mark:'#3A2A1E',pattern:'tabby',fluff:1,fluffC:'#E8DCCB',tuft:1,eyes:'#9BD36A',muzzle:'#F4ECE0'}},
   british:{n:'Earl Grey',b:'British Shorthair',r:'Secret',c:{fur:'#7E8AA0',fur2:'#A4AEC2',dark:'#68748A',face:'wide',round:1,eyes:'#F0A640',muzzle:'#B6C0D4',nose:'#5E6B82'}},
-  lion:{n:'Leo',b:'Lion',r:'Secret',c:{fur:'#E2A24E',fur2:'#F4C57E',dark:'#C9822E',fluff:1,fluffC:'#9A5420',face:'wide',round:1,eyes:'#E0A030',muzzle:'#FFF0D8',nose:'#6B3A1E',crown:1}},
+  lion:{n:'Leo',b:'Lion',r:'Secret',c:{fur:'#D98A4A',fur2:'#F0AE7C',dark:'#C9822E',fluff:1,fluffC:'#9A5420',face:'wide',round:1,eyes:'#E0802F',muzzle:'#FFEEE2',nose:'#6B3A1E',crown:1}},
 });
 Object.assign(POSE,{
   pickles:{pose:'proud',bg:['#E8F7C8','#A8D86A']},
@@ -24,10 +24,10 @@ Object.assign(POSE,{
   cosmo:{pose:'proud',bigTail:1,bg:['#2E5A7A','#122438']},
   ragdoll:{pose:'loaf',bg:['#D8E4FF','#7F9CFF']},
   persian:{pose:'buddha',bg:['#FFE0F2','#D88BFF']},
-  savannah:{pose:'pounce',bg:['#FFF0C8','#F2B84E']},
+  savannah:{pose:'pounce',bg:['#FFD8B8','#FF9F6B']},
   norwegian:{pose:'sit',bg:['#D4F0E4','#4FB894']},
   british:{pose:'box',bg:['#FFE6D0','#FFB37A']},
-  lion:{pose:'proud',bigTail:1,bg:['#FFE7A8','#FF8A3D']},
+  lion:{pose:'proud',bigTail:1,bg:['#FFD8B8','#FF8A3D']},
 });
 /* App ids for the mock's keys. */
 const IDS={mango:'gold',oreo:'ember',patches:'koala',miso:'jade',blue:'tide',dumpling:'flamingo',thor:'wolf',jaguar:'obsidian',dobby:'sphynx',midnight:'aurora',maneki:'phoenix',

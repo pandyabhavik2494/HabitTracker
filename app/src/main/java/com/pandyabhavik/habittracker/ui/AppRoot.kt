@@ -32,13 +32,16 @@ import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Today
 import androidx.compose.material3.Icon
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pandyabhavik.habittracker.data.HomeState
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 enum class Tab(val label: String, val icon: ImageVector, val key: String) {
@@ -75,7 +79,21 @@ class AppActions(
     val askHealth: () -> Unit,
     val askNotifications: () -> Unit,
     val wide: Boolean,
-)
+    /** Main's scope: outlives tab switches, so a snackbar and its action survive the screen that showed it. */
+    private val scope: CoroutineScope,
+) {
+    /** Shows a message; [onAction] runs if the user taps [actionLabel] before it times out. */
+    fun showMessage(message: String, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
+        scope.launch {
+            val r = snackbar.showSnackbar(
+                message,
+                actionLabel = actionLabel,
+                duration = if (actionLabel != null) SnackbarDuration.Long else SnackbarDuration.Short,
+            )
+            if (r == SnackbarResult.ActionPerformed) onAction?.invoke()
+        }
+    }
+}
 
 val LocalActions = staticCompositionLocalOf<AppActions> { error("No actions") }
 
@@ -132,6 +150,7 @@ private fun Main(
         askHealth = askHealth,
         askNotifications = askNotifications,
         wide = wide,
+        scope = scope,
     )
 
     BackHandler(enabled = settingsOpen) { settingsOpen = false }
@@ -164,6 +183,14 @@ private fun Main(
                     if (!settingsOpen) BottomBar(tab) { tab = it }
                 }
             }
+            // The last pack shown, so the overlay still has something to draw while it fades out.
+            var shownPackId by remember { mutableStateOf<Long?>(null) }
+            SideEffect { packId?.let { shownPackId = it } }
+            AnimatedVisibility(packId != null, enter = fadeIn(), exit = fadeOut()) {
+                val id = packId ?: shownPackId
+                if (id != null) PackFlow(id, s, onClose = { packId = null })
+            }
+            // After the pack overlay, so messages draw on top of it.
             SnackbarHost(
                 snackbar,
                 Modifier
@@ -171,10 +198,6 @@ private fun Main(
                     .navigationBarsPadding()
                     .padding(bottom = if (wide) 16.dp else 80.dp),
             )
-            AnimatedVisibility(packId != null, enter = fadeIn(), exit = fadeOut()) {
-                val id = packId
-                if (id != null) PackFlow(id, s, onClose = { packId = null })
-            }
         }
     }
 

@@ -38,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,10 +47,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -63,12 +67,14 @@ import androidx.compose.ui.unit.sp
 import com.pandyabhavik.habittracker.core.Catalog
 import com.pandyabhavik.habittracker.core.Packs
 import com.pandyabhavik.habittracker.core.Rarity
+import com.pandyabhavik.habittracker.core.Streaks
 import com.pandyabhavik.habittracker.data.HabitRepository
 import com.pandyabhavik.habittracker.data.HomeState
 import com.pandyabhavik.habittracker.data.PackEntity
 import com.pandyabhavik.habittracker.data.PackResult
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -80,8 +86,9 @@ fun PackFlow(packId: Long, s: HomeState, onClose: () -> Unit) {
     val a = LocalActions.current
     val pack = s.packs.firstOrNull { it.id == packId }
     var result by remember(packId) { mutableStateOf<PackResult?>(null) }
-    // A pack opened earlier (or on another screen) goes straight to its reveal.
-    LaunchedEffect(packId, pack?.openedCat) {
+    // A pack opened earlier (or on another screen) goes straight to its reveal. Checked once on entry:
+    // keying on openedCat would re-run when the rip itself writes the DB and cut its animation short.
+    LaunchedEffect(packId) {
         if (pack?.openedCat != null && result == null) result = a.vm.openPack(packId)
     }
     BackHandler { onClose() }
@@ -115,10 +122,8 @@ private fun Sealed(s: HomeState, pack: PackEntity, onOpened: (PackResult) -> Uni
     val scope = rememberCoroutineScope()
     val rip = remember { Animatable(0f) }
     var ripping by remember { mutableStateOf(false) }
-    val t by rememberClock()
-    // Wobbles for half a second every 2.4 seconds until it's torn.
-    val phase = t % 2.4f
-    val shake = if (!ripping && phase > 1.7f) sin((phase - 1.7f) * 40f) * 4f * (1f - (phase - 1.7f) / 0.7f) else 0f
+    // Read only in the layer and draw lambdas below, so the frame clock never recomposes this screen.
+    val clock = rememberClock()
 
     Column(
         Modifier
@@ -133,7 +138,7 @@ private fun Sealed(s: HomeState, pack: PackEntity, onOpened: (PackResult) -> Uni
             HabitRepository.REASON_SECRET -> "Secret unlocked" to (Catalog.find(fixedCat)?.hint ?: "A secret cat")
             HabitRepository.REASON_COMEBACK -> "Comeback complete" to "3 Perfect Days in a row. She's yours."
             HabitRepository.REASON_MILESTONE -> "${s.streak}-day milestone" to (if (minRarity == Rarity.HOLO.name) "Holo guaranteed." else "Rare or better, guaranteed.")
-            else -> "Perfect Day #${s.dayNumber}" to "You earned a pack."
+            else -> "Perfect Day #${packNumber(s, pack)}" to "You earned a pack."
         }
         Text(kicker.uppercase(), style = T.caps.copy(color = C.ink, letterSpacing = 3.sp))
         Spacer(Modifier.height(10.dp))
@@ -145,6 +150,9 @@ private fun Sealed(s: HomeState, pack: PackEntity, onOpened: (PackResult) -> Uni
             Modifier
                 .size(220.dp, 300.dp)
                 .graphicsLayer {
+                    // Wobbles for half a second every 2.4 seconds until it's torn.
+                    val phase = clock.value % 2.4f
+                    val shake = if (!ripping && phase > 1.7f) sin((phase - 1.7f) * 40f) * 4f * (1f - (phase - 1.7f) / 0.7f) else 0f
                     rotationZ = shake - 14f * rip.value
                     translationY = -60.dp.toPx() * rip.value
                     scaleX = 1f + 0.15f * rip.value
@@ -152,7 +160,7 @@ private fun Sealed(s: HomeState, pack: PackEntity, onOpened: (PackResult) -> Uni
                     alpha = 1f - rip.value
                 }
                 .clip(RoundedCornerShape(22.dp))
-                .background(foil(t))
+                .drawBehind { drawRect(foil(clock.value)) }
                 .border(2.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(22.dp))
                 .clickable(enabled = !ripping) {
                     ripping = true
@@ -210,6 +218,13 @@ private fun foil(t: Float): Brush {
     )
 }
 
+/** The Perfect Day number a pack was earned on: today's number, or the run that ended on the pack's day. */
+internal fun packNumber(s: HomeState, pack: PackEntity): Int {
+    val date = runCatching { LocalDate.parse(pack.date) }.getOrNull() ?: return s.dayNumber
+    if (date == s.now.toLocalDate()) return s.dayNumber
+    return Streaks.runEndingAt(s.days, date).coerceAtLeast(1)
+}
+
 @Composable
 private fun StreakTicker(streak: Int) {
     val flip = remember { Animatable(0f) }
@@ -248,7 +263,8 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
     val color = F.rarityColor(cat.rarity)
     val drop = remember { Animatable(0f) }
     val flash = remember { Animatable(0.9f) }
-    val t by rememberClock()
+    // Read only inside draw lambdas, so the frame clock never recomposes the reveal.
+    val clock = rememberClock()
     LaunchedEffect(r.pack.id) {
         launch { flash.animateTo(0f, tween(600)) }
         drop.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = 260f))
@@ -263,26 +279,30 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
     val more = s.unopened.firstOrNull { it.id != r.pack.id }
 
     Box(Modifier.fillMaxSize()) {
-        // Rays in the rarity colour, slowly turning.
-        Canvas(Modifier.fillMaxSize()) {
-            val c = Offset(size.width / 2, size.height * 0.3f)
-            rotate(t * 12f, c) {
-                val n = 16
-                for (i in 0 until n) {
-                    val ang = i * 2 * PI / n
+        // Rays in the rarity colour, slowly turning. Built once per size, then only rotated each frame.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .drawWithCache {
+                    val c = Offset(size.width / 2, size.height * 0.3f)
+                    val n = 16
                     val w = PI / n * 0.55
                     val len = size.maxDimension
-                    val path = androidx.compose.ui.graphics.Path().apply {
-                        moveTo(c.x, c.y)
-                        lineTo(c.x + (len * cos(ang - w)).toFloat(), c.y + (len * sin(ang - w)).toFloat())
-                        lineTo(c.x + (len * cos(ang + w)).toFloat(), c.y + (len * sin(ang + w)).toFloat())
-                        close()
+                    val rays = Path()
+                    for (i in 0 until n) {
+                        val ang = i * 2 * PI / n
+                        rays.moveTo(c.x, c.y)
+                        rays.lineTo(c.x + (len * cos(ang - w)).toFloat(), c.y + (len * sin(ang - w)).toFloat())
+                        rays.lineTo(c.x + (len * cos(ang + w)).toFloat(), c.y + (len * sin(ang + w)).toFloat())
+                        rays.close()
                     }
-                    drawPath(path, Brush.radialGradient(listOf(color.copy(alpha = 0.35f), Color.Transparent), c, len * 0.6f))
-                }
-            }
-        }
-        Confetti(t)
+                    val brush = Brush.radialGradient(listOf(color.copy(alpha = 0.35f), Color.Transparent), c, len * 0.6f)
+                    onDrawBehind {
+                        rotate(clock.value * 12f, c) { drawPath(rays, brush) }
+                    }
+                },
+        )
+        Confetti(clock)
         Column(
             Modifier
                 .fillMaxSize()
@@ -305,7 +325,7 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
                             alpha = v.coerceIn(0f, 1f)
                         },
                 ) {
-                    HoloGlow(cat.rarity, t)
+                    HoloGlow(cat.rarity, clock)
                     CatSticker(cat.id, 200.dp, Modifier.testTag("reveal-sticker"))
                 }
                 val badge = if (r.isNew) "NEW!" else "+1 SWAP"
@@ -374,7 +394,7 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
                         .height(50.dp)
                         .clip(CircleShape)
                         .background(C.whatsapp)
-                        .clickable { Share.whatsapp(context, cat, s) }
+                        .clickable { Share.whatsapp(context, cat, s, packNumber(s, r.pack)) }
                         .testTag("share-whatsapp"),
                     contentAlignment = Alignment.Center,
                 ) { Text("Send to WhatsApp", style = T.label.copy(color = Color(0xFF052E14))) }
@@ -384,7 +404,7 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
                         .height(50.dp)
                         .clip(CircleShape)
                         .background(C.s2)
-                        .clickable { Share.story(context, cat, s) }
+                        .clickable { Share.story(context, cat, s, packNumber(s, r.pack)) }
                         .testTag("share-story"),
                     contentAlignment = Alignment.Center,
                 ) { Text("Story", style = T.label) }
@@ -413,18 +433,18 @@ private fun Reveal(s: HomeState, r: PackResult, onClose: () -> Unit) {
 }
 
 @Composable
-private fun HoloGlow(rarity: Rarity, t: Float) {
+private fun HoloGlow(rarity: Rarity, clock: State<Float>) {
     if (rarity.ordinal < Rarity.HOLO.ordinal) return
     Canvas(Modifier.size(200.dp)) {
         val colors = listOf(Color(0xFFFF9AD5), Color(0xFF9BE7FF), Color(0xFFC6A8FF), Color(0xFFFF9AD5))
-        val i = ((t / 1.2f) % 3f).toInt()
+        val i = ((clock.value / 1.2f) % 3f).toInt()
         val c = colors[i]
         drawCircle(Brush.radialGradient(listOf(c.copy(alpha = 0.7f), Color.Transparent)), radius = size.minDimension * 0.62f)
     }
 }
 
 @Composable
-private fun Confetti(t: Float) {
+private fun Confetti(clock: State<Float>) {
     val bits = remember {
         val r = Random(7)
         List(46) {
@@ -433,6 +453,7 @@ private fun Confetti(t: Float) {
     }
     val colors = listOf(C.steps, C.calories, C.weigh, C.bath, C.swap)
     Canvas(Modifier.fillMaxSize()) {
+        val t = clock.value
         for (b in bits) {
             val life = (t * 0.35f * b[2] + b[1]) % 1.4f
             if (life > 1.2f) continue

@@ -41,8 +41,6 @@ import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -50,7 +48,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -73,6 +70,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -84,7 +82,6 @@ import com.pandyabhavik.habittracker.core.Habit
 import com.pandyabhavik.habittracker.core.Rules
 import com.pandyabhavik.habittracker.data.HomeState
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
@@ -275,8 +272,8 @@ fun Cards(s: HomeState, modifier: Modifier) {
 @Composable
 private fun PackWaiting(s: HomeState, id: Long) {
     val a = LocalActions.current
-    val t by rememberClock()
-    val wobble = kotlin.math.sin(t * 6f) * if ((t % 2.4f) < 0.6f) 4f else 0f
+    // Read only inside graphicsLayer, so the frame clock redraws the layer without recomposing.
+    val clock = rememberClock()
     Panel(
         Modifier
             .fillMaxWidth()
@@ -289,7 +286,10 @@ private fun PackWaiting(s: HomeState, id: Long) {
             Box(
                 Modifier
                     .size(54.dp, 70.dp)
-                    .graphicsLayer { rotationZ = wobble }
+                    .graphicsLayer {
+                        val t = clock.value
+                        rotationZ = kotlin.math.sin(t * 6f) * if ((t % 2.4f) < 0.6f) 4f else 0f
+                    }
                     .clip(RoundedCornerShape(10.dp))
                     .background(Brush.linearGradient(listOf(C.swap, C.weigh, C.bath))),
                 contentAlignment = Alignment.Center,
@@ -332,15 +332,21 @@ private fun RiskCard(s: HomeState) {
             delay(1000)
         }
     }
-    val pulse by rememberClock()
-    val alpha = 0.65f + 0.35f * (0.5f + 0.5f * kotlin.math.cos(pulse * Math.PI.toFloat()))
+    // Read only inside graphicsLayer, so the pulse never recomposes the card.
+    val pulse = rememberClock()
     Panel(
         Modifier.fillMaxWidth().testTag("risk-card"),
         borderColor = C.risk.copy(alpha = 0.45f),
         background = Brush.radialGradient(listOf(Color(0x33FF5A6A), C.s1), radius = 900f),
     ) {
         Caps("${s.dayNumber - 1}-day streak at risk", color = C.risk, icon = Icons.Rounded.Timer)
-        Text(countdown, style = T.big.copy(color = C.risk.copy(alpha = alpha)), modifier = Modifier.testTag("countdown"))
+        Text(
+            countdown,
+            style = T.big.copy(color = C.risk),
+            modifier = Modifier
+                .graphicsLayer { alpha = 0.65f + 0.35f * (0.5f + 0.5f * kotlin.math.cos(pulse.value * Math.PI.toFloat())) }
+                .testTag("countdown"),
+        )
         Spacer(Modifier.height(4.dp))
         Text(s.move?.title ?: "${open.size} quarters still open.", style = T.h2)
         Text("Close it and Perfect Day #${s.dayNumber} earns you a sticker pack.", style = T.body)
@@ -487,7 +493,15 @@ private fun PatternCard(s: HomeState, habit: Habit, day: DayOfWeek, misses: Int,
                     .clickable { a.vm.warnMe(day, habit) }
                     .testTag("warn-me"),
                 contentAlignment = Alignment.Center,
-            ) { Text("Yes, warn me ${name}s", style = T.label) }
+            ) {
+                Text(
+                    "Warn me ${day.getDisplayName(TextStyle.SHORT, Locale.US)}",
+                    style = T.label,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                )
+            }
             Box(
                 Modifier
                     .height(46.dp)
@@ -506,7 +520,6 @@ private fun PatternCard(s: HomeState, habit: Habit, day: DayOfWeek, misses: Int,
 private fun HabitRows(s: HomeState, onHabit: (Habit) -> Unit) {
     val a = LocalActions.current
     val view = LocalView.current
-    val scope = rememberCoroutineScope()
     // Open quarters first: the list always starts with what still needs doing.
     val order = Habit.entries.sortedBy { if (it in s.closed) 1 else 0 }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -546,23 +559,23 @@ private fun HabitRows(s: HomeState, onHabit: (Habit) -> Unit) {
                     d.bathAt?.let { "Logged ${F.time(it, s.zone)}" } ?: "Long-press to log",
                     null, 0f, closed,
                     trailing = if (closed) null else ({ Icon(Icons.Rounded.TouchApp, null, tint = C.bath) }),
-                    modifier = Modifier.semantics { onLongClick("Log bath") { logBath(a, s, view, scope); true } },
+                    modifier = Modifier.semantics { onLongClick("Log bath") { logBath(a, s, view); true } },
                     onClick = { onHabit(h) },
-                    onLongPress = if (closed) null else ({ logBath(a, s, view, scope) }),
+                    onLongPress = if (closed) null else ({ logBath(a, s, view) }),
                 )
             }
         }
     }
 }
 
-private fun logBath(a: AppActions, s: HomeState, view: android.view.View, scope: kotlinx.coroutines.CoroutineScope) {
+private fun logBath(a: AppActions, s: HomeState, view: android.view.View) {
     if (s.today.bathAt != null) return
     if (s.settings.haptics) view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+    // The bath that closes the last quarter makes the Perfect Day and its pack; that can't be undone.
+    val makesPerfect = Habit.entries.all { it == Habit.BATH || it in s.closed }
     a.vm.logBath()
-    scope.launch {
-        val r = a.snackbar.showSnackbar("Bath logged", actionLabel = "Undo", duration = SnackbarDuration.Long)
-        if (r == SnackbarResult.ActionPerformed) a.vm.undoBath()
-    }
+    if (makesPerfect) a.showMessage("Bath logged")
+    else a.showMessage("Bath logged", actionLabel = "Undo") { a.vm.undoBath() }
 }
 
 @Composable
@@ -774,11 +787,10 @@ fun Sparkline(values: List<Float>, modifier: Modifier) {
 private fun BathTile(s: HomeState, modifier: Modifier, onClick: () -> Unit) {
     val a = LocalActions.current
     val view = LocalView.current
-    val scope = rememberCoroutineScope()
     val d = s.today
     Tile(
         Habit.BATH, "Bath", s, modifier, onClick,
-        onLongPress = if (d.bathAt == null) ({ logBath(a, s, view, scope) }) else null,
+        onLongPress = if (d.bathAt == null) ({ logBath(a, s, view) }) else null,
     ) {
         if (d.bathAt != null) {
             val parts = F.time(d.bathAt!!, s.zone).split(" ")

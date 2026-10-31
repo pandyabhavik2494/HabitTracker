@@ -59,9 +59,10 @@ adb logcat -d > "$results/logcat-release.txt"
 adb uninstall $pkg >/dev/null || true
 fi
 
-# ScreensTest walks the app; WidgetsTest hosts every home-screen widget itself and screenshots them
-# (30-32-widgets-*). The widget bind grant it needs is given from inside the test: Gradle installs the
-# app afresh here (it was uninstalled above), so a grant from this script would have nothing to stick to.
+# ScreensTest walks the app (01-29); ActionsTest does every action end to end and checks the database
+# (40-62); WidgetsTest hosts every home-screen widget itself and screenshots them (30-35). The widget bind
+# grant it needs is given from inside the test: Gradle installs the app afresh here (it was uninstalled
+# above), so a grant from this script would have nothing to stick to.
 echo "== $suite tests ($screen) =="
 adb logcat -c
 adb shell rm -rf /sdcard/Download/habit-screens

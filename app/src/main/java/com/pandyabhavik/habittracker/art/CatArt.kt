@@ -23,7 +23,10 @@ import org.json.JSONObject
  * Everything is drawn on a 100 x 100 canvas.
  */
 object CatArt {
-    class Cat(val id: String, val art: Node, val silhouette: Node, val bg: Pair<Int, Int>)
+    class Cat(val id: String, val art: Node, val silhouette: Node, val bg: Pair<Int, Int>) {
+        /** Scratch transform for the animated parts; only touched while drawing, under synchronized(this). */
+        internal val motion = Motion.V()
+    }
 
     sealed class Node {
         var matrix: Matrix? = null
@@ -174,20 +177,20 @@ object CatArt {
         synchronized(cat) {
             canvas.save()
             canvas.scale(size / 100f, size / 100f)
-            draw(canvas, if (silhouette) cat.silhouette else cat.art, t + phase)
+            draw(canvas, if (silhouette) cat.silhouette else cat.art, t + phase, cat.motion)
             canvas.restore()
         }
     }
 
     private val tmp = Matrix()
 
-    private fun draw(canvas: Canvas, n: Node, t: Float) {
+    private fun draw(canvas: Canvas, n: Node, t: Float, v: Motion.V) {
         var alpha = n.opacity
         val a = n.anim
         val save = canvas.save()
         n.matrix?.let { canvas.concat(it) }
         if (a != null) {
-            val v = Motion.at(a.kind, t)
+            Motion.at(a.kind, t, v)
             canvas.translate(a.ox, a.oy)
             if (v.tx != 0f || v.ty != 0f) canvas.translate(v.tx, v.ty)
             if (v.r != 0f) canvas.rotate(v.r)
@@ -205,7 +208,7 @@ object CatArt {
                     }
                     canvas.saveLayerAlpha(null, (alpha * 255).toInt())
                 }
-                n.children.forEach { draw(canvas, it, t) }
+                for (child in n.children) draw(canvas, child, t, v)
             }
             is Shape -> {
                 n.fill?.let { drawWithAlpha(canvas, n.path, it, alpha) }
@@ -246,22 +249,30 @@ object CatArt {
  * around its pivot at time [t] in seconds.
  */
 object Motion {
-    class V(var r: Float = 0f, var tx: Float = 0f, var ty: Float = 0f, var sx: Float = 1f, var sy: Float = 1f, var o: Float = 1f)
+    class V(var r: Float = 0f, var tx: Float = 0f, var ty: Float = 0f, var sx: Float = 1f, var sy: Float = 1f, var o: Float = 1f) {
+        fun reset() {
+            r = 0f; tx = 0f; ty = 0f; sx = 1f; sy = 1f; o = 1f
+        }
+    }
 
     private fun ease(u: Float): Float = if (u < 0.5f) 2 * u * u else 1 - (-2 * u + 2) * (-2 * u + 2) / 2
 
-    /** Piecewise eased interpolation over keyframes (position 0..1 to value). */
-    private fun seg(t: Float, vararg keys: Pair<Float, Float>): Float {
-        for (i in 0 until keys.size - 1) {
-            val (p0, v0) = keys[i]
-            val (p1, v1) = keys[i + 1]
+    /** Piecewise eased interpolation over keyframes, given flat as position, value, position, value... */
+    private fun seg(t: Float, keys: FloatArray): Float {
+        var i = 0
+        while (i + 3 < keys.size) {
+            val p0 = keys[i]
+            val p1 = keys[i + 2]
             if (t >= p0 && t <= p1) {
+                val v0 = keys[i + 1]
+                val v1 = keys[i + 3]
                 val span = p1 - p0
                 val u = if (span <= 0f) 1f else ease((t - p0) / span)
                 return v0 + (v1 - v0) * u
             }
+            i += 2
         }
-        return keys.last().second
+        return keys[keys.size - 1]
     }
 
     private fun frac(t: Float, period: Float): Float {
@@ -269,21 +280,47 @@ object Motion {
         return if (x < 0) x + 1 else x
     }
 
-    fun at(kind: String, t: Float): V = when (kind) {
-        "bob" -> V(r = seg(frac(t, 3.4f), 0f to -4f, .5f to 4f, 1f to -4f))
-        "eyes" -> V(sy = seg(frac(t, 4.8f), 0f to 1f, .88f to 1f, .91f to .08f, .94f to 1f, 1f to 1f))
-        "earR" -> V(r = seg(frac(t, 5.5f), 0f to 0f, .78f to 0f, .81f to 14f, .84f to -6f, .87f to 0f, 1f to 0f))
-        "whisk" -> V(sy = seg(frac(t, 2.6f), 0f to 1f, .5f to 1.08f, 1f to 1f))
-        "tail" -> V(r = seg(frac(t, 2.2f), 0f to -8f, .5f to 10f, 1f to -8f))
-        "breathe" -> frac(t, 3f).let { V(sx = seg(it, 0f to 1f, .5f to 1.015f, 1f to 1f), sy = seg(it, 0f to 1f, .5f to 1.035f, 1f to 1f)) }
-        "lick" -> frac(t, 1.1f).let { V(r = seg(it, 0f to 0f, .5f to -14f, 1f to 0f), ty = seg(it, 0f to 0f, .5f to -2f, 1f to 0f)) }
-        "wave" -> V(r = seg(frac(t, .9f), 0f to -16f, .5f to 14f, 1f to -16f))
-        "zz" -> frac(t, 2.6f).let { V(ty = seg(it, 0f to 6f, 1f to -8f), o = seg(it, 0f to 0f, .3f to 1f, 1f to 0f)) }
-        "peek" -> V(ty = seg(frac(t, 3.2f), 0f to 4f, .4f to -3f, .7f to -3f, 1f to 4f))
-        "wig" -> frac(t, .5f).let { V(tx = seg(it, 0f to -1.6f, .5f to 1.6f, 1f to -1.6f), r = seg(it, 0f to -2f, .5f to 2f, 1f to -2f)) }
-        "sway" -> V(r = seg(frac(t, 3f), 0f to -3f, .5f to 3f, 1f to -3f))
-        "shiver" -> V(tx = seg(frac(t, .25f), 0f to 0f, .25f to -.5f, .75f to .5f, 1f to 0f))
-        "tw" -> V(o = seg(frac(t, 1.6f), 0f to 1f, .5f to .25f, 1f to 1f))
-        else -> V()
+    private val BOB = floatArrayOf(0f, -4f, .5f, 4f, 1f, -4f)
+    private val EYES = floatArrayOf(0f, 1f, .88f, 1f, .91f, .08f, .94f, 1f, 1f, 1f)
+    private val EAR_R = floatArrayOf(0f, 0f, .78f, 0f, .81f, 14f, .84f, -6f, .87f, 0f, 1f, 0f)
+    private val WHISK = floatArrayOf(0f, 1f, .5f, 1.08f, 1f, 1f)
+    private val TAIL = floatArrayOf(0f, -8f, .5f, 10f, 1f, -8f)
+    private val BREATHE_X = floatArrayOf(0f, 1f, .5f, 1.015f, 1f, 1f)
+    private val BREATHE_Y = floatArrayOf(0f, 1f, .5f, 1.035f, 1f, 1f)
+    private val LICK_R = floatArrayOf(0f, 0f, .5f, -14f, 1f, 0f)
+    private val LICK_Y = floatArrayOf(0f, 0f, .5f, -2f, 1f, 0f)
+    private val WAVE = floatArrayOf(0f, -16f, .5f, 14f, 1f, -16f)
+    private val ZZ_Y = floatArrayOf(0f, 6f, 1f, -8f)
+    private val ZZ_O = floatArrayOf(0f, 0f, .3f, 1f, 1f, 0f)
+    private val PEEK = floatArrayOf(0f, 4f, .4f, -3f, .7f, -3f, 1f, 4f)
+    private val WIG_X = floatArrayOf(0f, -1.6f, .5f, 1.6f, 1f, -1.6f)
+    private val WIG_R = floatArrayOf(0f, -2f, .5f, 2f, 1f, -2f)
+    private val SWAY = floatArrayOf(0f, -3f, .5f, 3f, 1f, -3f)
+    private val SHIVER = floatArrayOf(0f, 0f, .25f, -.5f, .75f, .5f, 1f, 0f)
+    private val TW = floatArrayOf(0f, 1f, .5f, .25f, 1f, 1f)
+
+    /** Writes the part's transform around its pivot at time [t] seconds into [out] (no allocation). */
+    fun at(kind: String, t: Float, out: V): V {
+        out.reset()
+        when (kind) {
+            "bob" -> out.r = seg(frac(t, 3.4f), BOB)
+            "eyes" -> out.sy = seg(frac(t, 4.8f), EYES)
+            "earR" -> out.r = seg(frac(t, 5.5f), EAR_R)
+            "whisk" -> out.sy = seg(frac(t, 2.6f), WHISK)
+            "tail" -> out.r = seg(frac(t, 2.2f), TAIL)
+            "breathe" -> frac(t, 3f).let { out.sx = seg(it, BREATHE_X); out.sy = seg(it, BREATHE_Y) }
+            "lick" -> frac(t, 1.1f).let { out.r = seg(it, LICK_R); out.ty = seg(it, LICK_Y) }
+            "wave" -> out.r = seg(frac(t, .9f), WAVE)
+            "zz" -> frac(t, 2.6f).let { out.ty = seg(it, ZZ_Y); out.o = seg(it, ZZ_O) }
+            "peek" -> out.ty = seg(frac(t, 3.2f), PEEK)
+            "wig" -> frac(t, .5f).let { out.tx = seg(it, WIG_X); out.r = seg(it, WIG_R) }
+            "sway" -> out.r = seg(frac(t, 3f), SWAY)
+            "shiver" -> out.tx = seg(frac(t, .25f), SHIVER)
+            "tw" -> out.o = seg(frac(t, 1.6f), TW)
+        }
+        return out
     }
+
+    /** Allocating convenience form. */
+    fun at(kind: String, t: Float): V = at(kind, t, V())
 }

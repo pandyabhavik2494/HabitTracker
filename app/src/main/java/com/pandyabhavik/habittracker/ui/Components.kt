@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -43,7 +44,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +54,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.isOutOfBounds
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -75,9 +78,11 @@ fun rememberClock(running: Boolean = true): State<Float> {
     val t = remember { mutableFloatStateOf(0f) }
     if (running) {
         LaunchedEffect(Unit) {
-            val start = withFrameNanos { it }
+            // Infinite-animation frames: the same as withFrameNanos in the app, but Compose UI tests know
+            // to stop it (they would otherwise never go idle and time out).
+            val start = withInfiniteAnimationFrameNanos { it }
             while (true) {
-                withFrameNanos { t.floatValue = (it - start) / 1_000_000_000f }
+                withInfiniteAnimationFrameNanos { t.floatValue = (it - start) / 1_000_000_000f }
             }
         }
     }
@@ -302,6 +307,9 @@ fun HoldButton(
     val scope = rememberCoroutineScope()
     val view = LocalView.current
     val shape = RoundedCornerShape(999.dp)
+    // The gesture loop below lives as long as the button; read the latest callback and setting.
+    val currentOnDone by rememberUpdatedState(onDone)
+    val currentHaptics by rememberUpdatedState(haptics)
     Box(
         modifier
             .fillMaxWidth()
@@ -315,23 +323,30 @@ fun HoldButton(
             .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown()
-                    if (haptics) view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    if (currentHaptics) view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                     val job = scope.launch {
                         fill.snapTo(0f)
                         fill.animateTo(1f, tween(millis, easing = LinearEasing))
-                        if (haptics) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                        onDone()
+                        if (currentHaptics) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                        currentOnDone()
                     }
-                    do {
+                    // Stops filling on release, when the finger drags off the button, or when a parent
+                    // (the scrolling screen) takes the gesture over.
+                    while (true) {
                         val event = awaitPointerEvent()
-                    } while (event.changes.any { it.pressed })
+                        if (event.changes.none { it.pressed }) break
+                        if (event.changes.any { it.isConsumed || it.isOutOfBounds(size, extendedTouchPadding) }) break
+                        // A parent scroll consumes in the Main pass after us; check again on the Final pass.
+                        val late = awaitPointerEvent(PointerEventPass.Final)
+                        if (late.changes.any { it.isConsumed }) break
+                    }
                     if (fill.value < 1f) {
                         job.cancel()
                         scope.launch { fill.animateTo(0f, tween(250)) }
                     }
                 }
             }
-            .semantics { onClick(label = text) { onDone(); true } }
+            .semantics { onClick(label = text) { currentOnDone(); true } }
             .testTag("hold-$text"),
         contentAlignment = Alignment.Center,
     ) {

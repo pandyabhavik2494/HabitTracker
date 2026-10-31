@@ -26,6 +26,12 @@ object SealArt {
     private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val oval = RectF(50 - R, 50 - R, 50 + R, 50 + R)
     private val shaderMatrix = Matrix()
+
+    // Mask filters are immutable; the breathing glow steps through a few cached radii instead of
+    // allocating a new filter every frame.
+    private const val BREATH_STEPS = 16
+    private val breathBlur = Array(BREATH_STEPS + 1) { BlurMaskFilter(6f + 8f * it / BREATH_STEPS, BlurMaskFilter.Blur.NORMAL) }
+    private val closedBlur = BlurMaskFilter(5f, BlurMaskFilter.Blur.NORMAL)
     private val sweep = SweepGradient(
         50f, 50f,
         intArrayOf(0xFF3BE38F.toInt(), 0xFF43D3EA.toInt(), 0xFFA98BFF.toInt(), 0xFFFF8A3D.toInt(), 0xFF3BE38F.toInt()),
@@ -58,7 +64,7 @@ object SealArt {
             if (glowOn) {
                 glow.shader = sweep
                 glow.strokeWidth = stroke + 4f
-                glow.maskFilter = BlurMaskFilter(6f + 8f * breath, BlurMaskFilter.Blur.NORMAL)
+                glow.maskFilter = breathBlur[(breath * BREATH_STEPS).toInt().coerceIn(0, BREATH_STEPS)]
                 glow.alpha = (150 + 80 * breath).toInt()
                 canvas.drawCircle(50f, 50f, R, glow)
                 glow.shader = null
@@ -87,7 +93,7 @@ object SealArt {
                 glow.color = col
                 glow.alpha = (alpha * 0.85f).toInt()
                 glow.strokeWidth = stroke
-                glow.maskFilter = BlurMaskFilter(5f, BlurMaskFilter.Blur.NORMAL)
+                glow.maskFilter = closedBlur
                 canvas.drawArc(oval, a0, span, false, glow)
             }
             arc.color = col

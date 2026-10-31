@@ -17,14 +17,35 @@ import androidx.core.content.res.ResourcesCompat
 import com.pandyabhavik.habittracker.R
 import com.pandyabhavik.habittracker.art.CatArt
 import com.pandyabhavik.habittracker.core.Cat
+import com.pandyabhavik.habittracker.core.Catalog
 import com.pandyabhavik.habittracker.data.HomeState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /** Sends a sticker as an image: to WhatsApp, or as a 9:16 card for a story. */
 object Share {
-    fun whatsapp(context: Context, cat: Cat, s: HomeState) {
-        val uri = save(context, card(context, cat, s, 1080, 1080), "sticker-${cat.id}.png")
-        val text = "Perfect Day #${s.streak} 🔥 Just pulled ${cat.name} the ${cat.breed}. ${s.owned.size} of 24 collected."
+    /** Main-thread scope for the share intents; the image itself is drawn and encoded on [Dispatchers.Default]. */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /** "Perfect Day #N" for the share, or null when there's no number worth showing (never "#0"). */
+    private fun dayNumber(s: HomeState, number: Int?): Int? = (number ?: s.perfectDays).takeIf { it > 0 }
+
+    /** [number] is the Perfect Day the sticker came from; without one, the count of Perfect Days is used. */
+    fun whatsapp(context: Context, cat: Cat, s: HomeState, number: Int? = null) {
+        scope.launch {
+            val uri = withContext(Dispatchers.Default) { save(context, card(context, cat, s, 1080, 1080, number), "sticker-${cat.id}.png") }
+            sendWhatsapp(context, cat, s, uri, number)
+        }
+    }
+
+    private fun sendWhatsapp(context: Context, cat: Cat, s: HomeState, uri: Uri, number: Int?) {
+        val day = dayNumber(s, number)
+        val text = (if (day != null) "Perfect Day #$day 🔥 " else "") +
+            "Just pulled ${cat.name} the ${cat.breed}. ${s.owned.size} of ${Catalog.SIZE} collected."
         val intent = Intent(Intent.ACTION_SEND)
             .setType("image/png")
             .putExtra(Intent.EXTRA_STREAM, uri)
@@ -38,8 +59,14 @@ object Share {
         }
     }
 
-    fun story(context: Context, cat: Cat, s: HomeState) {
-        val uri = save(context, card(context, cat, s, 1080, 1920), "story-${cat.id}.png")
+    fun story(context: Context, cat: Cat, s: HomeState, number: Int? = null) {
+        scope.launch {
+            val uri = withContext(Dispatchers.Default) { save(context, card(context, cat, s, 1080, 1920, number), "story-${cat.id}.png") }
+            sendStory(context, uri)
+        }
+    }
+
+    private fun sendStory(context: Context, uri: Uri) {
         val intent = Intent(Intent.ACTION_SEND)
             .setType("image/png")
             .putExtra(Intent.EXTRA_STREAM, uri)
@@ -56,7 +83,7 @@ object Share {
     }
 
     /** The share image: the sticker big on a dark glow, its name and breed, and the streak. */
-    fun card(context: Context, cat: Cat, s: HomeState, w: Int, h: Int): Bitmap {
+    fun card(context: Context, cat: Cat, s: HomeState, w: Int, h: Int, number: Int? = null): Bitmap {
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         val bg = Paint()
@@ -96,7 +123,8 @@ object Share {
         c.drawText(cat.name, cx, ny, name)
         c.drawText(cat.breed.uppercase(), cx, ny + w * 0.06f, small)
         val streak = Paint(small).apply { color = 0xFFFF6B57.toInt(); textSize = w * 0.04f }
-        c.drawText("PERFECT DAY #${s.streak}  ·  HABIT TRACKER", cx, ny + w * 0.13f, streak)
+        val day = dayNumber(s, number)
+        c.drawText(if (day != null) "PERFECT DAY #$day  ·  HABIT TRACKER" else "HABIT TRACKER", cx, ny + w * 0.13f, streak)
         return bmp
     }
 }

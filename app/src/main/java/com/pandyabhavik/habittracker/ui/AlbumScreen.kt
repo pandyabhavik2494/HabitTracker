@@ -44,6 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -149,8 +150,11 @@ private fun Slot(cat: Cat, s: HomeState, modifier: Modifier, phase: Float, onOpe
                 else -> "???"
             },
             style = T.label.copy(fontSize = 13.sp, color = if (owned != null) F.rarityColor(cat.rarity) else C.ink),
-            maxLines = 1,
+            // Long breed names on locked slots ("Norwegian Forest") wrap rather than clip in 3 columns.
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
         Text(
             when {
@@ -168,11 +172,12 @@ private fun Slot(cat: Cat, s: HomeState, modifier: Modifier, phase: Float, onOpe
 @Composable
 private fun StickerWithGlow(cat: Cat, size: Dp, phase: Float) {
     if (cat.rarity == Rarity.HOLO || cat.rarity == Rarity.LEGENDARY) {
-        val t by rememberClock()
+        // Read only inside drawBehind, so the frame clock never recomposes the album grid.
+        val clock = rememberClock()
         val colors = listOf(Color(0xFFFF9AD5), Color(0xFF9BE7FF), Color(0xFFC6A8FF))
-        val c = colors[(((t + phase) / 1.3f).toInt()) % 3]
         Box(
             Modifier.drawBehind {
+                val c = colors[(((clock.value + phase) / 1.3f).toInt()) % 3]
                 drawCircle(Brush.radialGradient(listOf(c.copy(alpha = 0.55f), Color.Transparent)), radius = this.size.minDimension * 0.62f)
             },
         ) { CatSticker(cat.id, size, phase = phase) }
