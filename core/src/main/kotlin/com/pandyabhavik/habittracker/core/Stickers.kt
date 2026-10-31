@@ -59,11 +59,12 @@ object Catalog {
 
     fun find(id: String?): Cat? = id?.let { byId[it] }
 
+    private val PACK_RARITIES = setOf(Rarity.COMMON, Rarity.UNCOMMON, Rarity.RARE, Rarity.HOLO)
+
     val packCats: List<Cat> = all.filter { it.rarity in PACK_RARITIES }
 
     val SIZE = all.size
 
-    private val PACK_RARITIES = setOf(Rarity.COMMON, Rarity.UNCOMMON, Rarity.RARE, Rarity.HOLO)
 }
 
 object Packs {
