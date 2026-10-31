@@ -268,7 +268,7 @@ class ActionsTest {
         app.click("pack")
         app.waitTag("reveal-name", 15_000)
         app.node("reveal-name").assertTextEquals(first.name)
-        app.assertText("Rip the next pack")
+        app.assertText("Rip the next pack · 1 more")
         shot("53-reveal-first-of-two")
 
         app.click("reveal-done")
