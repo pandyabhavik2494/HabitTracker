@@ -296,7 +296,7 @@ internal fun SealView(context: Context, s: HomeState) {
     Card(openToday(context), risk = s.atRisk) {
         Box(modifier = GlanceModifier.fillMaxSize().padding(4.dp), contentAlignment = Alignment.Center) {
             SealBlock(s, ring, GlanceModifier.fillMaxSize()) {
-                SealCenter(s, k, 19f * k, flame = true)
+                SealCenter(s, k, 16f * k, flame = false)
             }
         }
     }
@@ -453,7 +453,7 @@ internal fun WideView(context: Context, s: HomeState) {
             modifier = GlanceModifier.fillMaxSize().padding(horizontal = padH.dp, vertical = padV.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SealBlock(s, seal) { SealCenter(s, k, 16f * k, flame = false) }
+            SealBlock(s, seal) { SealCenter(s, k, 13f * k, flame = false) }
             Spacer(GlanceModifier.width(gap.dp))
             Column(modifier = GlanceModifier.defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
                 Habit.entries.forEachIndexed { i, h ->
@@ -529,7 +529,7 @@ internal fun LargeView(context: Context, s: HomeState) {
             }
             Spacer(GlanceModifier.height((6f * k).dp))
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                SealBlock(s, seal) { SealCenter(s, k, 18f * k, flame = false) }
+                SealBlock(s, seal) { SealCenter(s, k, 14f * k, flame = false) }
                 Spacer(GlanceModifier.width(gap.dp))
                 Column(modifier = GlanceModifier.defaultWeight()) {
                     Habit.entries.forEachIndexed { i, h ->
