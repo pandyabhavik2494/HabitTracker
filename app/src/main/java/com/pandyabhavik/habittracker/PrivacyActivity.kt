@@ -25,7 +25,7 @@ import com.pandyabhavik.habittracker.ui.T
 /** Opened by Health Connect ("Why does this app need access?"). */
 class PrivacyActivity : ComponentActivity() {
     private val sections = listOf(
-        "What the app reads" to "From Health Connect, with your permission: steps (from Google Health / Fit, your watch or the phone) and weight (from your scale's app, such as VeSync).",
+        "What the app reads" to "From Health Connect, with your permission: steps (from Google Health / Fit, your watch or the phone), food entries (from MyFitnessPal) and weight (from your scale's app, such as VeSync).",
         "What the app writes" to "Nothing. It only reads.",
         "Where your data lives" to "On this phone only: in Health Connect and in the app's own storage. No account, no servers, no internet access, no analytics.",
         "Why it reads in the background" to "So the Seal, the widgets and the evening nudges stay current every 15 minutes without opening the app.",

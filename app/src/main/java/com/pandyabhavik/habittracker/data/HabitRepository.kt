@@ -88,14 +88,14 @@ class HabitRepository(
         val s = settings.current()
         val today = today()
         // The first sync brings in the last 30 days for the Journey; after that, the last 3 days can
-        // still change (late syncs from the watch or the scale).
+        // still change (late syncs from the watch, a meal logged after midnight).
         val from = if (s.lastSync == null) today.minusDays(30) else today.minusDays(2)
         var d = from
         while (!d.isAfter(today)) {
             val h = health.readDay(d, zone(), granted)
             writeLock.withLock {
                 val old = dao.day(d.toString())?.toDay() ?: Day(d)
-                val hasData = (h.steps ?: 0) > 0 || h.weightKg != null
+                val hasData = (h.steps ?: 0) > 0 || (h.meals ?: 0) > 0 || h.weightKg != null
                 if (old != Day(d) || hasData || d == today) {
                     val oldAt = old.weighedAt
                     val newAt = h.weighedAt
@@ -104,6 +104,12 @@ class HabitRepository(
                     val merged = old.copy(
                         steps = h.steps ?: old.steps,
                         hourly = h.hourly ?: old.hourly,
+                        calories = h.calories ?: old.calories,
+                        meals = h.meals ?: old.meals,
+                        breakfast = if (h.meals != null) h.breakfast else old.breakfast,
+                        lunch = if (h.meals != null) h.lunch else old.lunch,
+                        dinner = if (h.meals != null) h.dinner else old.dinner,
+                        snacks = if (h.meals != null) h.snacks else old.snacks,
                         // The newer reading wins: a typed-in correction stays until the scale logs a later one.
                         weightKg = if (useScale) h.weightKg else old.weightKg,
                         weighedAt = if (useScale) h.weighedAt else old.weighedAt,
@@ -246,14 +252,13 @@ class HabitRepository(
         }
     }
 
-    /** "Yes, I logged my meals today": closes the meals quarter. */
-    suspend fun logMeals(): List<HabitEvent> {
-        editToday { it.copy(mealsLoggedAt = it.mealsLoggedAt ?: nowMillis()) }
+    suspend fun closeKitchen(): List<HabitEvent> {
+        editToday { it.copy(kitchenClosedAt = it.kitchenClosedAt ?: nowMillis()) }
         return evaluate()
     }
 
-    suspend fun unlogMeals(): List<HabitEvent> {
-        undoClose { it.copy(mealsLoggedAt = null) }
+    suspend fun reopenKitchen(): List<HabitEvent> {
+        undoClose { it.copy(kitchenClosedAt = null) }
         return evaluate()
     }
 

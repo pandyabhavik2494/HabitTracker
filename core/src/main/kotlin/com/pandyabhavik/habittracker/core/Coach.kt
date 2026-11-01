@@ -62,7 +62,11 @@ object Coach {
     /** A short description of what closing [habit] still takes. */
     fun leftText(habit: Habit, day: Day, goals: Goals, now: LocalDateTime): String = when (habit) {
         Habit.STEPS -> "${n(goals.steps - day.steps)} steps"
-        Habit.CALORIES -> "A meals check-in"
+        Habit.CALORIES -> when (Rules.calorieState(day, goals, now)) {
+            CalorieState.NOT_LOGGED -> "A logged meal"
+            CalorieState.OVER -> "Calories"
+            else -> "Closing the kitchen"
+        }
         Habit.WEIGH -> "A weigh-in"
         Habit.BATH -> "A bath"
     }
@@ -83,11 +87,12 @@ object Coach {
                 Move("A $walk-minute walk now puts you at$NBSP${n(by)}.", "Steps are the quarter that takes longest. Bank them${NBSP}early.")
             }
             Habit.WEIGH !in closed -> Move("Weigh in: instant quarter.", "30 seconds on the scale closes it.")
-            Habit.CALORIES !in closed && now.hour >= 18 ->
-                Move("Logged today's meals? Tap Meals.", "One tap closes the quarter.")
+            Habit.CALORIES !in closed && Rules.calorieState(day, goals, now) == CalorieState.UNDER ->
+                Move("Done eating? Close the kitchen.", "${n(goals.calories - day.calories)} kcal under. Lock it in.")
             Habit.BATH !in closed -> Move("Long-press Bath when you're done.", null)
             Habit.STEPS !in closed -> Move("A ${Rules.walkMinutes(stepsLeft)}-minute walk closes steps.", "${n(stepsLeft)} steps to go.")
-            Habit.CALORIES !in closed -> Move("Log your meals, then tap Meals.", "One tap closes the quarter.")
+            Habit.CALORIES !in closed && Rules.calorieState(day, goals, now) == CalorieState.NOT_LOGGED ->
+                Move("Log today's meals in MyFitnessPal.", "Calories close once the kitchen does.")
             else -> null
         }
     }

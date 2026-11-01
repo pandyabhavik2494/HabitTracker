@@ -1,5 +1,6 @@
 package com.pandyabhavik.habittracker.ui
 
+import com.pandyabhavik.habittracker.core.Day
 import com.pandyabhavik.habittracker.core.Habit
 import com.pandyabhavik.habittracker.core.Rarity
 import com.pandyabhavik.habittracker.data.HomeState
@@ -54,14 +55,14 @@ object F {
 
     fun habitName(h: Habit, s: HomeState): String = when (h) {
         Habit.STEPS -> "${compact(s.goals.steps)} steps"
-        Habit.CALORIES -> "Meals"
+        Habit.CALORIES -> "Under ${n(s.goals.calories)} kcal"
         Habit.WEIGH -> "Weigh-in"
         Habit.BATH -> "Bath"
     }
 
     fun habitShort(h: Habit, s: HomeState): String = when (h) {
         Habit.STEPS -> "${compact(s.goals.steps)} steps"
-        Habit.CALORIES -> "Meals"
+        Habit.CALORIES -> "≤${n(s.goals.calories)} kcal"
         Habit.WEIGH -> "Weigh-in"
         Habit.BATH -> "Bath"
     }
@@ -105,4 +106,7 @@ object F {
             else -> "Synced ${m / (24 * 60)} days ago"
         }
     }
+
+    fun mealLine(d: Day): List<Pair<String, Int>> =
+        listOf("Breakfast" to d.breakfast, "Lunch" to d.lunch, "Snacks" to d.snacks, "Dinner" to d.dinner).filter { it.second > 0 }
 }

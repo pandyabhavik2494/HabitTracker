@@ -92,6 +92,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pandyabhavik.habittracker.core.CalorieState
 import com.pandyabhavik.habittracker.core.Coach
 import com.pandyabhavik.habittracker.core.Habit
 import com.pandyabhavik.habittracker.core.Rules
@@ -282,7 +283,7 @@ private fun TodayWide(s: HomeState, onHabit: (Habit) -> Unit) {
                 // Tiles in a row share one height (the taller one's), so the rows stay aligned.
                 Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StepsTile(s, Modifier.weight(1f).fillMaxHeight()) { onHabit(Habit.STEPS) }
-                    MealsTile(s, Modifier.weight(1f).fillMaxHeight()) { onHabit(Habit.CALORIES) }
+                    CaloriesTile(s, Modifier.weight(1f).fillMaxHeight()) { onHabit(Habit.CALORIES) }
                 }
                 Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     WeighTile(s, Modifier.weight(1f).fillMaxHeight()) { onHabit(Habit.WEIGH) }
@@ -332,7 +333,8 @@ fun TopBar(s: HomeState, showSettings: Boolean, title: String? = null, kicker: S
 fun BigSeal(s: HomeState, size: Dp) {
     val open = Habit.entries.filter { it !in s.closed }
     val pulse = if (s.atRisk && open.size == 1) open.first() else null
-    Seal(s.progress, size, Modifier.testTag("seal"), pulse = pulse) {
+    val bad = if (s.calorieState == CalorieState.OVER) Habit.CALORIES else null
+    Seal(s.progress, size, Modifier.testTag("seal"), pulse = pulse, bad = bad) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(size * 0.62f)) {
             if (s.perfect) {
                 // The Perfect Day number lives on the card below; the ring just says it's sealed.
@@ -379,7 +381,11 @@ private fun sealCaption(s: HomeState, open: List<Habit>): String {
     if (open.size != 1) return s.sealLine
     return when (open.first()) {
         Habit.STEPS -> "${F.n((s.goals.steps - s.today.steps).coerceAtLeast(0))} steps to a $pd"
-        Habit.CALORIES -> "Log your meals for a $pd"
+        Habit.CALORIES -> when (s.calorieState) {
+            CalorieState.NOT_LOGGED -> "Log a meal for a $pd"
+            CalorieState.OVER -> s.sealLine
+            else -> "Close the kitchen for a $pd"
+        }
         Habit.WEIGH -> "A weigh-in away from a $pd"
         Habit.BATH -> "A bath away from a $pd"
     }
@@ -418,7 +424,7 @@ fun Cards(s: HomeState, modifier: Modifier) {
             Panel(Modifier.fillMaxWidth().clickable { a.askHealth() }.testTag("connect-health"), borderColor = C.bath.copy(alpha = 0.4f)) {
                 Caps("Connect Health Connect", color = C.bath, icon = Icons.Rounded.Sync)
                 Spacer(Modifier.height(6.dp))
-                Text("Steps and weight sync from Health Connect. Tap to allow access.".keepLast(), style = T.body)
+                Text("Steps, food and weight sync from Health Connect. Tap to allow access.".keepLast(), style = T.body)
             }
         }
     }
@@ -511,9 +517,9 @@ private fun RiskCard(s: HomeState) {
                 Spacer(Modifier.height(12.dp))
                 HoldButton("Hold to log bath", haptics = s.settings.haptics) { a.vm.logBath() }
             }
-            Habit.CALORIES -> if (open.size == 1) {
+            Habit.CALORIES -> if (open.size == 1 && s.calorieState == CalorieState.UNDER) {
                 Spacer(Modifier.height(12.dp))
-                HoldButton("Hold to log meals", haptics = s.settings.haptics) { a.vm.logMeals() }
+                HoldButton("Hold to close the kitchen", haptics = s.settings.haptics) { a.vm.closeKitchen() }
             }
             Habit.STEPS -> StartWalk()
             else -> Unit
@@ -658,7 +664,7 @@ private fun PatternCard(s: HomeState, habit: Habit, day: DayOfWeek, misses: Int,
     val name = day.getDisplayName(TextStyle.FULL, Locale.US)
     val what = when (habit) {
         Habit.STEPS -> "steps"
-        Habit.CALORIES -> "meals"
+        Habit.CALORIES -> "calorie"
         Habit.WEIGH -> "weigh-in"
         Habit.BATH -> "bath"
     }
@@ -724,12 +730,15 @@ private fun HabitRows(s: HomeState, onHabit: (Habit) -> Unit) {
                 )
                 Habit.CALORIES -> HabitRow(
                     h, F.habitName(h, s),
-                    d.mealsLoggedAt?.let { "Logged ${F.time(it, s.zone)}" } ?: "Logged them? Long-press".keepLast(),
-                    null, 0f, closed,
-                    trailing = if (closed) null else ({ Icon(Icons.Rounded.TouchApp, null, tint = C.calories) }),
-                    modifier = Modifier.semantics { onLongClick("Log meals") { logMeals(a, s, view); true } },
+                    when (s.calorieState) {
+                        CalorieState.NOT_LOGGED -> "Nothing logged · 0 of ${F.n(s.goals.calories)} kcal".keepLast()
+                        CalorieState.UNDER -> "${F.n(s.goals.calories - d.calories)} kcal left · kitchen locks ${F.minutesOfDay(s.goals.kitchenLockMinute)}"
+                        CalorieState.CLOSED -> "Kitchen closed · ${F.n(d.calories)} kcal sealed"
+                        CalorieState.OVER -> "${F.n(d.calories - s.goals.calories)} kcal over today"
+                    },
+                    F.n(d.calories), if (s.calorieState == CalorieState.UNDER) d.calories.toFloat() / s.goals.calories else 0f, closed,
+                    valueColor = if (s.calorieState == CalorieState.OVER) C.risk else C.ink,
                     onClick = { onHabit(h) },
-                    onLongPress = if (closed) null else ({ logMeals(a, s, view) }),
                 )
                 Habit.WEIGH -> HabitRow(
                     h, "Weigh-in",
@@ -914,55 +923,40 @@ fun HourBars(hourly: List<Int>, nowHour: Int, modifier: Modifier) {
     }
 }
 
-/** The meals quarter is a manual yes/no: "Did you log your meals today?", long-pressed like Bath. */
 @Composable
-private fun MealsTile(s: HomeState, modifier: Modifier, onClick: () -> Unit) {
-    val a = LocalActions.current
-    val view = LocalView.current
+private fun CaloriesTile(s: HomeState, modifier: Modifier, onClick: () -> Unit) {
     val d = s.today
+    val locked = Rules.kitchenLocked(d, s.goals, s.now)
     Tile(
-        Habit.CALORIES, "Meals", s, modifier, onClick,
-        onLongPress = if (d.mealsLoggedAt == null) ({ logMeals(a, s, view) }) else null,
+        Habit.CALORIES, "Calories", s, modifier, onClick,
+        badge = if (locked && Habit.CALORIES !in s.closed) ({ Icon(Icons.Rounded.Lock, null, tint = C.calories) }) else null,
     ) {
-        val at = d.mealsLoggedAt
-        if (at != null) {
-            val parts = F.time(at, s.zone).split(F.NBSP)
-            BigValue(parts[0], parts.getOrElse(1) { "" })
+        val meals = F.mealLine(d)
+        if (d.calories == 0 && d.meals == 0) {
+            EmptyValue("/ ${F.n(s.goals.calories)}", "Nothing logged yet.")
         } else {
-            EmptyValue("", "Not yet today.")
+            BigValue(F.n(d.calories), "/ ${F.n(s.goals.calories)}")
         }
         Spacer(Modifier.height(8.dp))
-        val run = mealsRun(s)
+        if (meals.isEmpty() && d.meals > 0) Text("${d.meals} entries logged.", style = T.small)
+        meals.forEach { (name, kcal) ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                Text(name, style = T.small.copy(color = C.ink), modifier = Modifier.weight(1f))
+                Text(F.n(kcal), style = T.small.copy(color = C.ink))
+            }
+        }
+        Spacer(Modifier.height(8.dp))
         Text(
-            listOfNotNull(
-                if (run > 1) "$run days in a row." else null,
-                if (at == null) "Logged them? Long-press." else null,
-            ).joinToString(" "),
-            style = T.small,
+            when (s.calorieState) {
+                CalorieState.CLOSED -> d.kitchenClosedAt?.let { "Kitchen closed at ${F.time(it, s.zone)}.\n${F.n(s.goals.calories - d.calories)}${F.NBSP}kcal under." }
+                    ?: "Kitchen locked at ${F.minutesOfDay(s.goals.kitchenLockMinute)}.\n${F.n(s.goals.calories - d.calories)}${F.NBSP}kcal under."
+                CalorieState.OVER -> "${F.n(d.calories - s.goals.calories)} kcal over. Tomorrow's a new day."
+                CalorieState.UNDER -> "${F.n(s.goals.calories - d.calories)} left.\nKitchen locks at ${F.minutesOfDay(s.goals.kitchenLockMinute)}."
+                CalorieState.NOT_LOGGED -> "Log meals in MyFitnessPal; they sync here."
+            },
+            style = T.small.copy(color = if (s.calorieState == CalorieState.OVER) C.risk else C.mute),
         )
     }
-}
-
-/** Days in a row, up to today, with meals marked logged. Today counts only once it's logged. */
-private fun mealsRun(s: HomeState): Int {
-    var n = 0
-    var d = s.now.toLocalDate()
-    if (s.days[d]?.mealsLoggedAt == null) d = d.minusDays(1)
-    while (s.days[d]?.mealsLoggedAt != null) {
-        n++
-        d = d.minusDays(1)
-    }
-    return n
-}
-
-private fun logMeals(a: AppActions, s: HomeState, view: android.view.View) {
-    if (s.today.mealsLoggedAt != null) return
-    if (s.settings.haptics) view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-    // The check-in that closes the last quarter makes the Perfect Day and its pack; that can't be undone.
-    val makesPerfect = Habit.entries.all { it == Habit.CALORIES || it in s.closed }
-    a.vm.logMeals()
-    if (makesPerfect) a.showMessage("Meals logged")
-    else a.showMessage("Meals logged", actionLabel = "Undo") { a.vm.unlogMeals() }
 }
 
 @Composable

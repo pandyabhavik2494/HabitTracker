@@ -74,7 +74,7 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
 /**
  * Redraws the widgets at the moments the day changes shape without new data: midnight (a fresh day),
- * and 8 PM (the at-risk countdown starts). Each run books the next.
+ * 8 PM (the at-risk countdown starts) and 8:31 PM (the kitchen locks). Each run books the next.
  */
 class TickWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
@@ -91,7 +91,7 @@ class TickWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
 
     companion object {
         /** Minutes after midnight. */
-        val TIMES = listOf(1, 20 * 60)
+        val TIMES = listOf(1, 20 * 60, 20 * 60 + 31)
     }
 }
 
@@ -152,7 +152,7 @@ object Schedules {
     }
 }
 
-/** Buttons on notifications: log a bath or mark meals logged without opening the app. */
+/** Buttons on notifications: log a bath or close the kitchen without opening the app. */
 class ActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val pending = goAsync()
@@ -161,7 +161,7 @@ class ActionReceiver : BroadcastReceiver() {
                 val repo = Graph.repo(context)
                 val events = when (intent.action) {
                     ACTION_BATH -> repo.logBath()
-                    ACTION_MEALS -> repo.logMeals()
+                    ACTION_KITCHEN -> repo.closeKitchen()
                     else -> emptyList()
                 }
                 Notifier.cancelNudge(context)
@@ -178,7 +178,7 @@ class ActionReceiver : BroadcastReceiver() {
 
     companion object {
         const val ACTION_BATH = "com.pandyabhavik.habittracker.LOG_BATH"
-        const val ACTION_MEALS = "com.pandyabhavik.habittracker.LOG_MEALS"
+        const val ACTION_KITCHEN = "com.pandyabhavik.habittracker.CLOSE_KITCHEN"
     }
 }
 

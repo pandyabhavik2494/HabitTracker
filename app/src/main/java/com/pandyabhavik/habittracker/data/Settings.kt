@@ -23,6 +23,8 @@ import java.time.LocalDate
 data class Settings(
     val onboarded: Boolean = false,
     val stepsGoal: Int = 10_000,
+    val calorieGoal: Int = 1_500,
+    val kitchenLockMinute: Int = 20 * 60 + 30,
     val pounds: Boolean = true,
     val notifyPledge: Boolean = true,
     val notifyMidday: Boolean = true,
@@ -45,7 +47,7 @@ data class Settings(
     val lastSyncError: String? = null,
     val firstDay: LocalDate? = null,
 ) {
-    val goals: Goals get() = Goals(stepsGoal)
+    val goals: Goals get() = Goals(stepsGoal, calorieGoal, kitchenLockMinute)
 }
 
 private val Context.store: DataStore<Preferences> by preferencesDataStore(
@@ -59,6 +61,8 @@ class SettingsStore(context: Context) {
     private object K {
         val onboarded = booleanPreferencesKey("onboarded")
         val steps = intPreferencesKey("steps_goal")
+        val calories = intPreferencesKey("calorie_goal")
+        val lock = intPreferencesKey("kitchen_lock")
         val pounds = booleanPreferencesKey("pounds")
         val nPledge = booleanPreferencesKey("n_pledge")
         val nMidday = booleanPreferencesKey("n_midday")
@@ -92,6 +96,8 @@ class SettingsStore(context: Context) {
     private fun read(p: Preferences): Settings = Settings(
         onboarded = p[K.onboarded] ?: false,
         stepsGoal = p[K.steps] ?: 10_000,
+        calorieGoal = p[K.calories] ?: 1_500,
+        kitchenLockMinute = p[K.lock] ?: (20 * 60 + 30),
         pounds = p[K.pounds] ?: true,
         notifyPledge = p[K.nPledge] ?: true,
         notifyMidday = p[K.nMidday] ?: true,
@@ -114,6 +120,8 @@ class SettingsStore(context: Context) {
     private fun write(p: MutablePreferences, s: Settings) {
         p[K.onboarded] = s.onboarded
         p[K.steps] = s.stepsGoal
+        p[K.calories] = s.calorieGoal
+        p[K.lock] = s.kitchenLockMinute
         p[K.pounds] = s.pounds
         p[K.nPledge] = s.notifyPledge
         p[K.nMidday] = s.notifyMidday

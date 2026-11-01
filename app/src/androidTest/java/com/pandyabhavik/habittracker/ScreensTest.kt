@@ -146,9 +146,9 @@ class ScreensTest {
         app.waitGone("sheet-steps")
 
         app.openSheet(Habit.CALORIES)
-        app.assertText("Did you log your meals today?")
-        app.waitTag("hold-Hold to log meals")
-        shot("12-sheet-meals")
+        app.assertText("790 kcal")
+        app.waitTag("hold-Hold to close the kitchen")
+        shot("12-sheet-calories")
         app.back()
         app.waitGone("sheet-calories")
 
@@ -218,7 +218,7 @@ class ScreensTest {
 
         app.open(Scene.PATTERN)
         app.waitTag("pattern-card")
-        app.assertText("Wednesdays are your meals trap.")
+        app.assertText("Wednesdays are your calorie trap.")
         // "4 of your last 4 Wednesdays" / "All of your last 4 Wednesdays": match the stable part.
         app.assertText("of your last 4 Wednesdays", substring = true)
         // Those misses broke the streak: it runs from last Wednesday.
@@ -273,6 +273,8 @@ class ScreensTest {
         app.open(Scene.MIDDAY)
         app.openSettings()
         app.node("steps-goal-value").assertTextEquals("10,000")
+        app.node("calorie-goal-value").assertTextEquals("1,500 kcal")
+        app.assertTagText("kitchen-lock-value", "8:30 PM")
         for (section in listOf("GOALS", "NOTIFICATIONS", "FEEL", "HEALTH CONNECT")) app.assertText(section)
         shot("27-settings")
         if (scrolledDown("settings", to = "n-last")) shot("28-settings-notifications")

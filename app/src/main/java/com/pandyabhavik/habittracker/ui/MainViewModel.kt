@@ -26,7 +26,7 @@ import java.time.DayOfWeek
 class MainViewModel(app: Application) : AndroidViewModel(app) {
     val repo = Graph.repo(app)
 
-    /** Re-evaluates the time-based rules (8 PM risk, midnight) every 15 seconds. */
+    /** Re-evaluates the time-based rules (kitchen lock, 8 PM risk, midnight) every 15 seconds. */
     private val ticker = flow {
         while (true) {
             emit(Unit)
@@ -102,8 +102,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun logBath() = act { repo.logBath() }
     fun undoBath() = act { repo.undoBath() }
-    fun logMeals() = act { repo.logMeals() }
-    fun unlogMeals() = act { repo.unlogMeals() }
+    fun closeKitchen() = act { repo.closeKitchen() }
+    fun reopenKitchen() = act { repo.reopenKitchen() }
     fun logWeight(kg: Double) = act { repo.logWeight(kg) }
     fun pledge() = viewModelScope.launch { repo.pledge() }
 

@@ -15,29 +15,29 @@ class RulesTest {
     private val today = LocalDate.of(2026, 10, 31)
     private fun at(h: Int, m: Int = 0) = LocalDateTime.of(today, LocalTime.of(h, m))
 
-    private fun perfect(d: LocalDate) = Day(d, steps = 10_500, mealsLoggedAt = 1, weighedAt = 1, bathAt = 1, perfectAt = 1)
+    private fun perfect(d: LocalDate) = Day(d, steps = 10_500, calories = 1_200, meals = 3, weighedAt = 1, bathAt = 1, perfectAt = 1)
 
     @Test fun stepsCloseAtGoal() {
         assertFalse(Rules.closed(Habit.STEPS, Day(today, steps = 9_999), goals, at(12)))
         assertTrue(Rules.closed(Habit.STEPS, Day(today, steps = 10_000), goals, at(12)))
     }
 
-    @Test fun mealsCloseOnlyWhenMarkedLogged() {
-        assertFalse(Rules.closed(Habit.CALORIES, Day(today), goals, at(23, 59)))
-        assertTrue(Rules.closed(Habit.CALORIES, Day(today, mealsLoggedAt = 5), goals, at(9)))
-        assertFalse(Rules.closed(Habit.CALORIES, Day(today.minusDays(1)), goals, at(8)))
-        assertEquals(0f, Rules.progress(Day(today), goals, at(19)).getValue(Habit.CALORIES))
+    @Test fun caloriesNeedALoggedMealAndALockedKitchen() {
+        assertEquals(CalorieState.NOT_LOGGED, Rules.calorieState(Day(today), goals, at(21)))
+        assertEquals(CalorieState.UNDER, Rules.calorieState(Day(today, calories = 900, meals = 2), goals, at(14)))
+        assertEquals(CalorieState.CLOSED, Rules.calorieState(Day(today, calories = 900, meals = 2), goals, at(20, 30)))
+        assertEquals(CalorieState.CLOSED, Rules.calorieState(Day(today, calories = 900, meals = 2, kitchenClosedAt = 5), goals, at(13)))
+        assertEquals(CalorieState.OVER, Rules.calorieState(Day(today, calories = 1_501, meals = 4, kitchenClosedAt = 5), goals, at(21)))
+        assertEquals(CalorieState.CLOSED, Rules.calorieState(Day(today, calories = 1_500, meals = 4), goals, at(21)))
     }
 
-    @Test fun mealsNudgeInTheEvening() {
-        val d = Day(today, steps = 10_000, weighedAt = 1, bathAt = 1)
-        val closed = Rules.closedSet(d, goals, at(19))
-        assertEquals("Logged today's meals? Tap Meals.", Coach.nextMove(d, goals, at(19), closed)?.title)
-        assertEquals("A meals check-in away from a Perfect Day", Coach.sealLine(d, goals, at(19), closed, 5))
+    @Test fun pastDaysCountTheKitchenAsLocked() {
+        val y = Day(today.minusDays(1), calories = 1_000, meals = 3)
+        assertEquals(CalorieState.CLOSED, Rules.calorieState(y, goals, at(8)))
     }
 
     @Test fun perfectNeedsAllFour() {
-        val d = Day(today, steps = 10_000, mealsLoggedAt = 1, weighedAt = 1, bathAt = null)
+        val d = Day(today, steps = 10_000, calories = 1_000, meals = 3, kitchenClosedAt = 1, weighedAt = 1, bathAt = null)
         assertFalse(Rules.perfect(d, goals, at(15)))
         assertTrue(Rules.perfect(d.copy(bathAt = 2), goals, at(15)))
     }
@@ -65,7 +65,7 @@ class RulesTest {
     @Test fun swapsSaveAMissedDayAfterAStreak() {
         val days = HashMap<LocalDate, Day>()
         (2..5).forEach { days[today.minusDays(it.toLong())] = perfect(today.minusDays(it.toLong())) }
-        days[today.minusDays(1)] = Day(today.minusDays(1), steps = 4_000)
+        days[today.minusDays(1)] = Day(today.minusDays(1), calories = 1_612, meals = 4)
         val s = Streaks.settle(days, today.minusDays(1), today, swaps = 4)
         assertEquals(listOf(today.minusDays(1)), s.saved)
         assertEquals(1, s.swapsLeft)
@@ -162,7 +162,7 @@ class RulesTest {
     }
 
     @Test fun sealLineNamesTheLastQuarter() {
-        val d = Day(today, steps = 8_760, mealsLoggedAt = 1, weighedAt = 1, bathAt = 1)
+        val d = Day(today, steps = 8_760, calories = 1_380, meals = 4, kitchenClosedAt = 1, weighedAt = 1, bathAt = 1)
         val closed = Rules.closedSet(d, goals, at(21, 18))
         assertEquals("1,240 steps away from a Perfect Day", Coach.sealLine(d, goals, at(21, 18), closed, 24))
         assertEquals("Perfect Day #24 is up for grabs", Coach.sealLine(Day(today), goals, at(7), emptySet(), 24))
@@ -188,7 +188,7 @@ class RulesTest {
     @Test fun nextMovePrefersTheInstantQuarterInTheMorning() {
         val m = Coach.nextMove(Day(today, steps = 400), goals, at(7), emptySet())
         assertEquals("Weigh in: instant quarter.", m?.title)
-        val evening = Day(today, steps = 8_760, mealsLoggedAt = 1, weighedAt = 1, bathAt = 1)
+        val evening = Day(today, steps = 8_760, calories = 1_380, meals = 4, weighedAt = 1, bathAt = 1, kitchenClosedAt = 1)
         assertEquals("One 13-minute walk closes steps.", Coach.nextMove(evening, goals, at(21), Rules.closedSet(evening, goals, at(21)))?.title)
     }
 }

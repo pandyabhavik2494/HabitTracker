@@ -44,6 +44,7 @@ import androidx.glance.unit.ColorProvider
 import com.pandyabhavik.habittracker.MainActivity
 import com.pandyabhavik.habittracker.R
 import com.pandyabhavik.habittracker.art.SealArt
+import com.pandyabhavik.habittracker.core.CalorieState
 import com.pandyabhavik.habittracker.core.Coach
 import com.pandyabhavik.habittracker.core.Habit
 import com.pandyabhavik.habittracker.core.Rules
@@ -158,16 +159,36 @@ internal fun countdown(s: HomeState): String {
     return if (h > 0) "${h}h ${m}m" else "${m}m"
 }
 
-/** Bar fill for a habit: its progress (steps fill gradually; the yes/no quarters are empty or full). */
-private fun barValue(s: HomeState, h: Habit): Float = (s.progress[h] ?: 0f).coerceIn(0f, 1f)
+private fun calorieOver(s: HomeState) = s.calorieState == CalorieState.OVER
 
-private fun barColor(s: HomeState, h: Habit): Color = C.of(h)
+/**
+ * Bar fill for a habit: its progress. Calories are different: s.progress is a time-of-day fill until the
+ * kitchen locks (right for the Seal), but next to "710 left" a bar reads as a kcal meter, so here it shows
+ * kcal eaten against the limit; full once the kitchen is closed, and full (red) when over.
+ */
+private fun barValue(s: HomeState, h: Habit): Float = when {
+    h != Habit.CALORIES -> (s.progress[h] ?: 0f).coerceIn(0f, 1f)
+    s.calorieState == CalorieState.OVER || s.calorieState == CalorieState.CLOSED -> 1f
+    s.goals.calories <= 0 -> 0f
+    else -> (s.today.calories.toFloat() / s.goals.calories).coerceIn(0f, 1f)
+}
 
-/** The value at the end of a habit row: what's left while open, "done" once closed (totals live in the app). */
-private fun rowValue(s: HomeState, h: Habit): String = when {
-    h in s.closed -> "done"
-    h == Habit.STEPS -> "${Coach.n((s.goals.steps - s.today.steps).coerceAtLeast(0))} left"
-    else -> "open"
+private fun barColor(s: HomeState, h: Habit): Color = if (h == Habit.CALORIES && calorieOver(s)) C.risk else C.of(h)
+
+/**
+ * The value at the end of a habit row: what's left while open, "done" once closed, for every habit alike
+ * (totals live in the app). Calories over the limit say by how much, in red.
+ */
+private fun rowValue(s: HomeState, h: Habit): String = when (h) {
+    Habit.STEPS -> if (h in s.closed) "done"
+    else "${Coach.n((s.goals.steps - s.today.steps).coerceAtLeast(0))} left"
+    Habit.CALORIES -> when (s.calorieState) {
+        CalorieState.NOT_LOGGED -> "open"
+        CalorieState.UNDER -> "${Coach.n((s.goals.calories - s.today.calories).coerceAtLeast(0))} left"
+        CalorieState.CLOSED -> "done"
+        CalorieState.OVER -> "${Coach.n((s.today.calories - s.goals.calories).coerceAtLeast(0))} over"
+    }
+    Habit.WEIGH, Habit.BATH -> if (h in s.closed) "done" else "open"
 }
 
 /** A rounded bar. [trackDp] is the expected track width, used for the fill; the track itself takes [modifier]. */
@@ -200,7 +221,11 @@ private fun HabitRow(s: HomeState, h: Habit, k: Float, rowDp: Float, valueDp: Fl
                 rowValue(s, h),
                 modifier = GlanceModifier.width(valueDp.dp),
                 style = ts(
-                    if (closed) C.ink else C.mute,
+                    when {
+                        h == Habit.CALORIES && calorieOver(s) -> C.risk
+                        closed -> C.ink
+                        else -> C.mute
+                    },
                     12.5f * k, FontWeight.Medium, TextAlign.End,
                 ),
                 maxLines = 1,
@@ -580,14 +605,15 @@ internal object Art {
     fun seal(s: HomeState, dp: Float): Bitmap {
         val px = bucket(dp, 40, 160, SEAL_MAX)
         val progress = Habit.entries.map { s.progress[it] ?: 0f }
-        val key = "seal:$px:${progress.joinToString(",") { q(it).toString() }}"
+        val bad = if (s.calorieState == CalorieState.OVER) Habit.CALORIES.ordinal else null
+        val key = "seal:$px:${progress.joinToString(",") { q(it).toString() }}:$bad"
         return cached(key) {
             val bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
             val c = Canvas(bmp)
             // Wide enough that the Perfect glow's blur fades out before the bitmap edge (0.08 showed a hard box).
             val inset = px * 0.14f
             c.translate(inset, inset)
-            SealArt.draw(c, px - 2 * inset, progress, t = 0.6f, stroke = 10f)
+            SealArt.draw(c, px - 2 * inset, progress, t = 0.6f, stroke = 10f, bad = bad)
             bmp
         }
     }
