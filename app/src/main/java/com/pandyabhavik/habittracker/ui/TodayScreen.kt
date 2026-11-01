@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.tappableElement
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -334,46 +335,53 @@ fun BigSeal(s: HomeState, size: Dp) {
     val open = Habit.entries.filter { it !in s.closed }
     val pulse = if (s.atRisk && open.size == 1) open.first() else null
     val bad = if (s.calorieState == CalorieState.OVER) Habit.CALORIES else null
-    Seal(s.progress, size, Modifier.testTag("seal"), pulse = pulse, bad = bad) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(size * 0.62f)) {
-            if (s.perfect) {
-                // The Perfect Day number lives on the card below; the ring just says it's sealed.
-                Icon(Icons.Rounded.Check, null, tint = C.ink, modifier = Modifier.size(size * 0.2f))
-                Text("4/4", style = T.big)
-                Text("SEALED", style = T.caps.copy(color = C.ink))
-            } else {
-                Text(
-                    buildAnnotatedString {
-                        append("${s.closedCount}")
-                        withStyle(SpanStyle(color = C.dim, fontSize = (size.value * 0.1f).sp)) { append("/4") }
-                    },
-                    style = T.hero.copy(fontSize = (size.value * 0.24f).sp),
-                )
-                Text(
-                    if (s.comebackFrom != null) "DAY ${s.comebackDay} OF 3" else "CLOSED",
-                    style = T.caps,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    sealCaption(s, open),
-                    style = T.small.copy(
-                        color = if (open.size == 1) C.of(open.first()) else C.mute,
-                        fontSize = 12.sp,
-                        lineBreak = LineBreak.Heading,
-                    ),
-                    textAlign = TextAlign.Center,
-                    // Always two lines tall, so the numeral above doesn't jump when the caption wraps.
-                    minLines = 2,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // Four nested rings with the count in the middle; the words sit underneath.
+        Seal(s.progress, size, Modifier.testTag("seal"), stroke = 7.5f, pulse = pulse, bad = bad) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (s.perfect) {
+                    Icon(Icons.Rounded.Check, null, tint = C.ink, modifier = Modifier.size(size * 0.16f))
+                } else {
+                    Text(
+                        buildAnnotatedString {
+                            append("${s.closedCount}")
+                            withStyle(SpanStyle(color = C.dim, fontSize = (size.value * 0.065f).sp)) { append("/4") }
+                        },
+                        style = T.hero.copy(fontSize = (size.value * 0.13f).sp),
+                    )
+                }
             }
+        }
+        Spacer(Modifier.height(14.dp))
+        if (s.perfect) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("4/4", style = T.caps.copy(color = C.ink))
+                Text(" · ", style = T.caps.copy(color = C.dim))
+                Text("SEALED", style = T.caps.copy(color = C.ink))
+            }
+        } else {
+            Text(
+                if (s.comebackFrom != null) "DAY ${s.comebackDay} OF 3" else "CLOSED",
+                style = T.caps,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                sealCaption(s, open),
+                style = T.body.copy(
+                    color = if (open.size == 1) C.of(open.first()) else C.mute,
+                    lineBreak = LineBreak.Heading,
+                ),
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = size * 1.1f),
+            )
         }
     }
 }
 
 /**
- * The line inside the Seal: short, plain English. With one quarter left, "Perfect Day" is held
+ * The line inside the Seal: short, plain English. With one ring left, "Perfect Day" is held
  * together so "Day" never ends up alone on the second line.
  */
 private fun sealCaption(s: HomeState, open: List<Habit>): String {
@@ -509,7 +517,7 @@ private fun RiskCard(s: HomeState) {
                 .testTag("countdown"),
         )
         Spacer(Modifier.height(4.dp))
-        Text((s.move?.title ?: "${open.size} quarters still open.").keepLast(), style = T.h2)
+        Text((s.move?.title ?: "${open.size} rings still open.").keepLast(), style = T.h2)
         Text("Close it for Perfect Day #${s.dayNumber} and a sticker pack.".keepLast(), style = T.body)
         // The gap above the button only when there is one, so the card's top and bottom padding match.
         when (open.firstOrNull()) {
@@ -715,7 +723,7 @@ private fun PatternCard(s: HomeState, habit: Habit, day: DayOfWeek, misses: Int,
 private fun HabitRows(s: HomeState, onHabit: (Habit) -> Unit) {
     val a = LocalActions.current
     val view = LocalView.current
-    // Open quarters first: the list always starts with what still needs doing.
+    // Open rings first: the list always starts with what still needs doing.
     val order = Habit.entries.sortedBy { if (it in s.closed) 1 else 0 }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         order.forEach { h ->
@@ -766,7 +774,7 @@ private fun HabitRows(s: HomeState, onHabit: (Habit) -> Unit) {
 private fun logBath(a: AppActions, s: HomeState, view: android.view.View) {
     if (s.today.bathAt != null) return
     if (s.settings.haptics) view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-    // The bath that closes the last quarter makes the Perfect Day and its pack; that can't be undone.
+    // The bath that closes the last ring makes the Perfect Day and its pack; that can't be undone.
     val makesPerfect = Habit.entries.all { it == Habit.BATH || it in s.closed }
     a.vm.logBath()
     if (makesPerfect) a.showMessage("Bath logged")
@@ -1100,7 +1108,7 @@ private fun WeekStrip(s: HomeState) {
                             val prog = Habit.entries.associateWith { h ->
                                 if (s.closedOn(date, h) == true) 1f else if (date == today) (s.progress[h] ?: 0f) else 0f
                             }
-                            Seal(prog, 34.dp, stroke = 14f, animate = false)
+                            Seal(prog, 34.dp, stroke = 9f, animate = false)
                         }
                     }
                     Spacer(Modifier.height(4.dp))

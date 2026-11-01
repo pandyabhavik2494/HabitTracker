@@ -91,7 +91,7 @@ private fun Welcome(screenHeight: androidx.compose.ui.unit.Dp, next: () -> Unit)
     // Short screens (the cover display) shrink the ring and the gaps so "Get started" fits without scrolling.
     val compact = screenHeight < 760.dp
     val ring = minOf(220.dp, screenHeight * 0.26f)
-    // Opens on the full, sealed ring (the goal), then shows it filling quarter by quarter.
+    // Opens on the full, sealed ring (the goal), then shows it filling ring by ring.
     var demo by rememberSaveable { mutableIntStateOf(4) }
     LaunchedEffect(Unit) {
         delay(1500)
@@ -103,18 +103,18 @@ private fun Welcome(screenHeight: androidx.compose.ui.unit.Dp, next: () -> Unit)
     }
     val prog = Habit.entries.mapIndexed { i, h -> h to if (i < demo) 1f else 0f }.toMap()
     Spacer(Modifier.height(if (compact) 0.dp else 24.dp))
-    Seal(prog, ring) {
+    Seal(prog, ring, stroke = 7.5f) {
         if (demo >= 4) {
-            Icon(Icons.Rounded.Check, contentDescription = "Sealed", tint = C.ink, modifier = Modifier.size(if (compact) 48.dp else 56.dp))
+            Icon(Icons.Rounded.Check, contentDescription = "Sealed", tint = C.ink, modifier = Modifier.size(ring * 0.16f))
         } else {
-            Text("$demo/4", style = T.hero.copy(fontSize = if (compact) 40.sp else 48.sp))
+            Text("$demo/4", style = T.hero.copy(fontSize = (ring.value * 0.13f).sp))
         }
     }
     Spacer(Modifier.height(if (compact) 14.dp else 24.dp))
     Text("Close all four.\nEvery day.", style = T.hero.copy(fontSize = if (compact) 32.sp else 40.sp), textAlign = TextAlign.Center)
     Spacer(Modifier.height(if (compact) 8.dp else 12.dp))
     Text(
-        "Each habit is a quarter of the Seal. Close all four for a Perfect Day, a sticker pack, and one more day on the streak.",
+        "Each habit is one ring of the Seal. Close all four for a Perfect Day, a sticker pack, and one more day on the streak.",
         style = T.body,
         textAlign = TextAlign.Center,
     )
@@ -189,7 +189,7 @@ private fun Nudges(askNotifications: () -> Unit, next: () -> Unit) {
     Spacer(Modifier.height(18.dp))
     Panel(Modifier.fillMaxWidth()) {
         listOf(
-            "7:00 AM" to "The pledge. Weigh in first: a quarter done before coffee.",
+            "7:00 AM" to "The pledge. Weigh in first: one ring closed before coffee.",
             "12:30 PM" to "Only if you're behind on steps.",
             "9:00 PM" to "At risk: what's left, and the countdown to midnight.",
             "11:00 PM" to "Last call, with a Log bath button right on it.",

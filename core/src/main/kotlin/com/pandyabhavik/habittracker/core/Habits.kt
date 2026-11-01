@@ -50,7 +50,7 @@ enum class CalorieState {
     /** Kitchen closed (tapped or locked at the set time) at or under the limit. */
     CLOSED,
 
-    /** Over the limit: this quarter can't close today. */
+    /** Over the limit: this ring can't close today. */
     OVER,
 }
 
@@ -81,12 +81,12 @@ object Rules {
 
     fun perfect(day: Day, goals: Goals, now: LocalDateTime): Boolean = closedSet(day, goals, now).size == 4
 
-    /** Progress of each quarter, 0..1, for the Seal. A closed quarter is always 1. */
+    /** Progress of each ring, 0..1, for the Seal. A closed ring is always 1. */
     fun progress(day: Day, goals: Goals, now: LocalDateTime): Map<Habit, Float> = Habit.entries.associateWith { h ->
         if (closed(h, day, goals, now)) 1f else when (h) {
             Habit.STEPS -> (day.steps.toFloat() / goals.steps).coerceIn(0f, 0.97f)
             Habit.CALORIES -> when (calorieState(day, goals, now)) {
-                // Under budget so far: the quarter fills as the day goes on, and closes when the kitchen does.
+                // Under budget so far: the ring fills as the day goes on, and closes when the kitchen does.
                 CalorieState.UNDER -> {
                     val minute = now.hour * 60 + now.minute
                     (minute.toFloat() / goals.kitchenLockMinute).coerceIn(0.05f, 0.95f)

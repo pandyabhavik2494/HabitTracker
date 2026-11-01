@@ -98,7 +98,7 @@ fun Habit.icon(): ImageVector = when (this) {
     Habit.BATH -> Icons.Rounded.Bathtub
 }
 
-/** The four-quarter ring. Progress animates in; closed quarters glow; a Perfect Day turns iridescent. */
+/** The four-ring ring. Progress animates in; closed rings glow; a Perfect Day turns iridescent. */
 @Composable
 fun Seal(
     progress: Map<Habit, Float>,

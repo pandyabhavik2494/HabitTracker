@@ -182,12 +182,12 @@ class RulesTest {
         val m = Coach.nextMove(Day(today, steps = 820, weighedAt = 1), goals, at(13), setOf(Habit.WEIGH))
         assertEquals("A 20-minute walk now puts you at 2,820.", m?.title)
         // "early." never sits alone on the last line.
-        assertEquals("Steps are the quarter that takes longest. Bank them\u00A0early.", m?.detail)
+        assertEquals("Steps are the ring that takes longest. Bank them\u00A0early.", m?.detail)
     }
 
     @Test fun nextMovePrefersTheInstantQuarterInTheMorning() {
         val m = Coach.nextMove(Day(today, steps = 400), goals, at(7), emptySet())
-        assertEquals("Weigh in: instant quarter.", m?.title)
+        assertEquals("Weigh in: instant ring.", m?.title)
         val evening = Day(today, steps = 8_760, calories = 1_380, meals = 4, weighedAt = 1, bathAt = 1, kitchenClosedAt = 1)
         assertEquals("One 13-minute walk closes steps.", Coach.nextMove(evening, goals, at(21), Rules.closedSet(evening, goals, at(21)))?.title)
     }

@@ -525,21 +525,21 @@ class ActionsTest {
         )
         val risk = sensible(Slot.RISK, Notifier.nudgeText(Slot.RISK, state(LocalTime.of(21, 0), stepsOpen)))
         assertEquals("2,400 steps between you and Perfect Day #24.", risk.first)
-        assertEquals("Your 23-day streak ends at midnight if this quarter stays open.", risk.second)
+        assertEquals("Your 23-day streak ends at midnight if this ring stays open.", risk.second)
         val twoOpen = sensible(Slot.RISK, Notifier.nudgeText(Slot.RISK, state(LocalTime.of(21, 0), stepsOpen.copy(bathAt = null))))
         assertEquals("2,400 steps and 1 more between you and Perfect Day #24.", twoOpen.first)
-        assertTrue(twoOpen.second, twoOpen.second.endsWith("if these quarters stay open."))
+        assertTrue(twoOpen.second, twoOpen.second.endsWith("if these rings stay open."))
         val noStreak = sensible(Slot.RISK, Notifier.nudgeText(Slot.RISK, state(LocalTime.of(21, 0), stepsOpen.copy(bathAt = null), history = false)))
-        assertEquals("2 quarters still open.", noStreak.first)
+        assertEquals("2 rings still open.", noStreak.first)
         assertTrue(noStreak.second, noStreak.second.startsWith("Close them before midnight"))
 
         // 11 PM last call.
         val bathOpen = stepsOpen.copy(steps = 10_300, bathAt = null)
         val last = sensible(Slot.LAST_CALL, Notifier.nudgeText(Slot.LAST_CALL, state(LocalTime.of(23, 0), bathOpen)))
-        assertEquals("Bath is the last quarter.", last.first)
+        assertEquals("Bath is the last ring.", last.first)
         assertEquals("60 minutes left. Already had one? Tap to log it.", last.second)
         val lastTwo = sensible(Slot.LAST_CALL, Notifier.nudgeText(Slot.LAST_CALL, state(LocalTime.of(23, 0), stepsOpen.copy(bathAt = null))))
-        assertEquals("2 quarters open, 60 minutes left.", lastTwo.first)
+        assertEquals("2 rings open, 60 minutes left.", lastTwo.first)
 
         // A Perfect Day is never nagged about.
         val perfect = stepsOpen.copy(steps = 10_300, kitchenClosedAt = at(19, 0))

@@ -147,7 +147,7 @@ private fun Sheet(state: HomeState?, loaded: Boolean, onLog: () -> Unit, onClose
                     Icon(Icons.Rounded.Check, contentDescription = null, tint = Color(0xFF04141A), modifier = Modifier.size(30.dp))
                 }
                 Text("Bath logged at $time", style = T.h2, textAlign = TextAlign.Center)
-                Text("Today's bath quarter is closed.", style = T.body, textAlign = TextAlign.Center)
+                Text("Today's bath ring is closed.", style = T.body, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(4.dp))
                 TextButton(onClick = onClose) { Text("Close", style = T.label.copy(color = C.bath)) }
             } else {

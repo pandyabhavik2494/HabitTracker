@@ -260,13 +260,13 @@ private fun SealCenter(s: HomeState, k: Float, numberSp: Float, flame: Boolean, 
             Text(caption, style = ts(C.mute, 12f * k, FontWeight.Medium, TextAlign.Center), maxLines = 1)
         }
         if (flame) {
-            Spacer(GlanceModifier.height((3f * k).dp))
+            Spacer(GlanceModifier.height((1f * k).dp))
             // At risk, the countdown alone (no flame icon) in a smaller size, so "2h 42m" sits well inside
             // the ring's hole instead of touching the arcs.
             if (s.atRisk) {
-                Text(countdown(s), style = ts(C.risk, 10.5f * k, FontWeight.Bold, TextAlign.Center), maxLines = 1)
+                Text(countdown(s), style = ts(C.risk, 9.5f * k, FontWeight.Bold, TextAlign.Center), maxLines = 1)
             } else {
-                FlameChip(s, 12.5f * k)
+                FlameChip(s, 11f * k)
             }
         }
     }
@@ -296,7 +296,7 @@ internal fun SealView(context: Context, s: HomeState) {
     Card(openToday(context), risk = s.atRisk) {
         Box(modifier = GlanceModifier.fillMaxSize().padding(4.dp), contentAlignment = Alignment.Center) {
             SealBlock(s, ring, GlanceModifier.fillMaxSize()) {
-                SealCenter(s, k, 28f * k, flame = true)
+                SealCenter(s, k, 19f * k, flame = true)
             }
         }
     }
@@ -453,7 +453,7 @@ internal fun WideView(context: Context, s: HomeState) {
             modifier = GlanceModifier.fillMaxSize().padding(horizontal = padH.dp, vertical = padV.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SealBlock(s, seal) { SealCenter(s, k, 22f * k, flame = false) }
+            SealBlock(s, seal) { SealCenter(s, k, 16f * k, flame = false) }
             Spacer(GlanceModifier.width(gap.dp))
             Column(modifier = GlanceModifier.defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
                 Habit.entries.forEachIndexed { i, h ->
@@ -529,7 +529,7 @@ internal fun LargeView(context: Context, s: HomeState) {
             }
             Spacer(GlanceModifier.height((6f * k).dp))
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                SealBlock(s, seal) { SealCenter(s, k, 28f * k, flame = false, caption = "closed") }
+                SealBlock(s, seal) { SealCenter(s, k, 18f * k, flame = false) }
                 Spacer(GlanceModifier.width(gap.dp))
                 Column(modifier = GlanceModifier.defaultWeight()) {
                     Habit.entries.forEachIndexed { i, h ->
@@ -601,7 +601,7 @@ internal object Art {
         (c.red * 255).roundToInt(), (c.green * 255).roundToInt(), (c.blue * 255).roundToInt(),
     )
 
-    /** The Seal, inset so the glow of closed quarters (and the Perfect ring) isn't cut off at the edges. */
+    /** The Seal, inset so the glow of closed rings (and the Perfect ring) isn't cut off at the edges. */
     fun seal(s: HomeState, dp: Float): Bitmap {
         val px = bucket(dp, 40, 160, SEAL_MAX)
         val progress = Habit.entries.map { s.progress[it] ?: 0f }
@@ -611,9 +611,9 @@ internal object Art {
             val bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
             val c = Canvas(bmp)
             // Wide enough that the Perfect glow's blur fades out before the bitmap edge (0.08 showed a hard box).
-            val inset = px * 0.14f
+            val inset = px * 0.05f
             c.translate(inset, inset)
-            SealArt.draw(c, px - 2 * inset, progress, t = 0.6f, stroke = 10f, bad = bad)
+            SealArt.draw(c, px - 2 * inset, progress, t = 0.6f, stroke = 7f, bad = bad)
             bmp
         }
     }

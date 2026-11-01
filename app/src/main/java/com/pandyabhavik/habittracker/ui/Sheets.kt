@@ -152,9 +152,9 @@ private fun CaloriesSheet(s: HomeState, close: () -> Unit) {
     Text(
         when (s.calorieState) {
             CalorieState.NOT_LOGGED -> "Nothing logged today. Log in MyFitnessPal; it syncs through Health Connect."
-            CalorieState.UNDER -> "${F.n(s.goals.calories - d.calories)} kcal left. Done eating? Close the kitchen to seal the quarter, or it locks itself at ${F.minutesOfDay(s.goals.kitchenLockMinute)}."
+            CalorieState.UNDER -> "${F.n(s.goals.calories - d.calories)} kcal left. Done eating? Close the kitchen to seal the ring, or it locks itself at ${F.minutesOfDay(s.goals.kitchenLockMinute)}."
             CalorieState.CLOSED -> "Kitchen closed with ${F.n(s.goals.calories - d.calories)} kcal to spare. Food logged later still counts against you."
-            CalorieState.OVER -> "${F.n(d.calories - s.goals.calories)} kcal over. This quarter can't close today; swaps can still save the streak tonight."
+            CalorieState.OVER -> "${F.n(d.calories - s.goals.calories)} kcal over. This ring can't close today; swaps can still save the streak tonight."
         },
         style = T.body,
     )
@@ -207,7 +207,7 @@ private fun WeighSheet(s: HomeState, close: () -> Unit) {
         Text(F.weight(today, s.settings.pounds), style = T.hero.copy(fontSize = 40.sp))
         F.weightTrend(s, today)?.let { trend -> Text(trend, style = T.body) }
     } else {
-        Text("Step on your scale. VeSync sends the weigh-in to Health Connect and this quarter closes on its own.", style = T.body)
+        Text("Step on your scale. VeSync sends the weigh-in to Health Connect and this ring closes on its own.", style = T.body)
     }
     var text by remember { mutableStateOf("") }
     val unit = F.unit(s.settings.pounds)

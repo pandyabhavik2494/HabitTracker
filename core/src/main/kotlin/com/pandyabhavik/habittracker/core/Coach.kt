@@ -78,15 +78,15 @@ object Coach {
         val stepsLeft = goals.steps - day.steps
         return when {
             closed.size == 4 -> null
-            Habit.WEIGH !in closed && now.hour < 12 -> Move("Weigh in: instant quarter.", "30 seconds on the scale closes it.")
+            Habit.WEIGH !in closed && now.hour < 12 -> Move("Weigh in: instant ring.", "30 seconds on the scale closes it.")
             Habit.STEPS !in closed && stepsLeft <= 2_500 ->
                 Move("One ${Rules.walkMinutes(stepsLeft)}-minute walk closes steps.", "${n(stepsLeft)} steps to go.")
             Habit.STEPS !in closed && now.hour < 17 -> {
                 val walk = 20
                 val by = (day.steps + walk * 100)
-                Move("A $walk-minute walk now puts you at$NBSP${n(by)}.", "Steps are the quarter that takes longest. Bank them${NBSP}early.")
+                Move("A $walk-minute walk now puts you at$NBSP${n(by)}.", "Steps are the ring that takes longest. Bank them${NBSP}early.")
             }
-            Habit.WEIGH !in closed -> Move("Weigh in: instant quarter.", "30 seconds on the scale closes it.")
+            Habit.WEIGH !in closed -> Move("Weigh in: instant ring.", "30 seconds on the scale closes it.")
             Habit.CALORIES !in closed && Rules.calorieState(day, goals, now) == CalorieState.UNDER ->
                 Move("Done eating? Close the kitchen.", "${n(goals.calories - day.calories)} kcal under. Lock it in.")
             Habit.BATH !in closed -> Move("Long-press Bath when you're done.", null)

@@ -39,8 +39,8 @@ object Notifier {
                 NotificationChannel(REWARD_CHANNEL, "Perfect Days and stickers", NotificationManager.IMPORTANCE_DEFAULT).apply {
                     description = "When a Perfect Day earns a sticker pack"
                 },
-                NotificationChannel(ONGOING_CHANNEL, "Today's quarters", NotificationManager.IMPORTANCE_LOW).apply {
-                    description = "The four quarters in the status bar all day (optional)"
+                NotificationChannel(ONGOING_CHANNEL, "Today's rings", NotificationManager.IMPORTANCE_LOW).apply {
+                    description = "The four rings in the status bar all day (optional)"
                     setShowBadge(false)
                 },
             ),
@@ -73,7 +73,7 @@ object Notifier {
         return when (slot) {
             Slot.PLEDGE -> if (s.today.pledgedAt != null || !s.settings.notifyPledge) null else
                 "Day ${s.dayNumber} starts now." to
-                    if (Habit.WEIGH !in s.closed) "Weigh in first and you're a quarter done before coffee."
+                    if (Habit.WEIGH !in s.closed) "Weigh in first and you're one ring closed before coffee."
                     else "Hold to pledge: \"I close all four today.\""
             Slot.MIDDAY -> {
                 val expected = Coach.expectedSteps(s.goals, s.now)
@@ -96,15 +96,15 @@ object Notifier {
                 when {
                     !s.settings.notifyRisk || open.isEmpty() -> null
                     streak > 0 -> "${Coach.leftText(open.first(), s.today, s.goals, s.now)}${if (open.size > 1) " and ${open.size - 1} more" else ""} between you and Perfect Day #${s.dayNumber}." to
-                        "Your $streak-day streak ends at midnight if ${if (open.size == 1) "this quarter stays" else "these quarters stay"} open."
-                    else -> "${open.size} ${if (open.size == 1) "quarter" else "quarters"} still open." to
+                        "Your $streak-day streak ends at midnight if ${if (open.size == 1) "this ring stays" else "these rings stay"} open."
+                    else -> "${open.size} ${if (open.size == 1) "ring" else "rings"} still open." to
                         "Close ${if (open.size == 1) "it" else "them"} before midnight for a Perfect Day and a sticker pack."
                 }
             }
             Slot.LAST_CALL -> {
                 if (!s.settings.notifyLastCall || open.isEmpty()) null
-                else if (open.size == 1) "${label(open.first())} is the last quarter." to "60 minutes left. ${lastCallTip(open.first(), s)}"
-                else "${open.size} quarters open, 60 minutes left." to "Every one you close still counts toward tomorrow's comeback."
+                else if (open.size == 1) "${label(open.first())} is the last ring." to "60 minutes left. ${lastCallTip(open.first(), s)}"
+                else "${open.size} rings open, 60 minutes left." to "Every one you close still counts toward tomorrow's comeback."
             }
         }
     }
@@ -174,7 +174,7 @@ object Notifier {
     }
 }
 
-/** The optional all-day notification with the four quarters. */
+/** The optional all-day notification with the four rings. */
 object Ongoing {
     fun text(s: HomeState): String {
         val parts = ArrayList<String>()
